@@ -135,6 +135,23 @@ class MultiPool(nn.Module):
         return torch.cat([avg_p, max_p], dim=1)
 
 
+class SelfAttnWithMask(nn.Module):
+    def __init__(self):
+        super(SelfAttnWithMask, self).__init__()
+
+    @staticmethod
+    def zero_inf_mask(seq):
+        mask = seq.eq(0)
+        float_mask = mask.float()
+        return torch.masked_fill(float_mask, mask, float("-inf"))
+
+    def forward(self, encoded_seq, inf_mask):
+        attn = torch.matmul(encoded_seq, encoded_seq.transpose(1, 2))
+        soft_attn = torch.softmax(attn + inf_mask.unsqueeze(1), dim=-1)
+        soft_align = torch.matmul(soft_attn, encoded_seq)
+        return soft_align
+
+
 class Model(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -147,6 +164,7 @@ class Model(nn.Module):
         self.num_labels = config.num_labels
         self.classes = config.classes
 
+        self.self_attn = SelfAttnWithMask()
         self.units = list()
         for idx in range(self.num_labels):
             attn_fc_unit = nn.Sequential(
@@ -160,13 +178,6 @@ class Model(nn.Module):
             )
             self.units.append((attn_fc_unit, nn.CrossEntropyLoss().to(config.device)))
 
-    @staticmethod
-    def soft_attn_align(encoded_seq, inf_mask):
-        attn = torch.matmul(encoded_seq, encoded_seq.transpose(1, 2))
-        soft_attn = torch.softmax(attn + inf_mask.unsqueeze(1), dim=-1)
-        soft_align = torch.matmul(soft_attn, encoded_seq)
-        return soft_align
-
     def forward(self, inputs):
         # 输入数据解析
         seq_ids = inputs[0]
@@ -179,7 +190,7 @@ class Model(nn.Module):
         encoded_seq = outputs[0]
 
         # 使用自关注增强语意表征 [16, 1024, 768 * 2]
-        soft_align = self.soft_attn_align(encoded_seq, inf_mask)
+        soft_align = self.self_attn(encoded_seq, inf_mask)
         enhanced_seq = torch.cat([encoded_seq, soft_align], dim=-1)
 
         total_logits = list()
