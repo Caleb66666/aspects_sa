@@ -111,7 +111,7 @@ def train():
 
 
 if __name__ == '__main__':
-    task_name = "text_match"
+    task_name = "aspects_sa"
     setproctitle(task_name)
     parser = argparse.ArgumentParser(description=task_name)
 
