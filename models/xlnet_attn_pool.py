@@ -48,7 +48,7 @@ class Config(object):
         # 梯度相关
         self.learning_rate = 1e-5
         self.weight_decay = 1e-2
-        self.warm_up_steps = 20
+        self.warm_up_steps = 40
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
