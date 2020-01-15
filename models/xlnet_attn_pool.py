@@ -117,17 +117,17 @@ class Attention(nn.Module):
         [p.data.normal_(-0.001, 0.001) for p in (self.w, self.u)]
 
     def forward(self, input_x):
-        x = torch.tanh(input_x)
-        x = torch.matmul(x, self.w)
+        x = torch.matmul(input_x, self.w)
+        x = torch.tanh(x)
         x = torch.matmul(x, self.u)
         alpha = torch.softmax(x, dim=1)
         x = input_x * alpha
         return x
 
 
-class MultiPooling(nn.Module):
+class MultiPool(nn.Module):
     def __init__(self):
-        super(MultiPooling, self).__init__()
+        super(MultiPool, self).__init__()
 
     def forward(self, input_x):
         avg_p = torch.avg_pool1d(input_x.transpose(1, 2), input_x.size(1)).squeeze(-1)
@@ -146,7 +146,6 @@ class Model(nn.Module):
         self.num_classes = config.num_classes
         self.num_labels = config.num_labels
         self.classes = config.classes
-        self.soft_max = nn.Softmax(dim=-1)
 
         self.units = list()
         for idx in range(self.num_labels):
@@ -154,7 +153,7 @@ class Model(nn.Module):
                 # batch_size, seq, xlnet_hidden * 2
                 Attention(config.xlnet_hidden * 2, config.attn_size),
                 # batch_size, xlnet_hidden * 4
-                MultiPooling(),
+                MultiPool(),
                 nn.BatchNorm1d(config.xlnet_hidden * 4),
                 nn.Dropout(config.dropout),
                 nn.Linear(config.xlnet_hidden * 4, config.num_classes),
