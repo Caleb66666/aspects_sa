@@ -3,14 +3,22 @@
 # @Email: VanderLancer@gmail.com
 # @time: 2020/1/13 16:54:15
 
+import os
+import torch
+from torch import nn
 from utils.path_util import abspath, keep_max_backup, newest_file
 from utils.time_util import cur_time_stamp
 from utils.ml_util import calc_f1
-import torch
-from torch import nn
-import os
 from data_loader import XlLoader
 from transformers import AdamW, get_linear_schedule_with_warmup, XLNetModel, XLNetTokenizer
+
+from logging import ERROR
+from transformers.tokenization_utils import logger as tokenizer_logger
+from transformers.file_utils import logger as file_logger
+from transformers.configuration_utils import logger as config_logger
+from transformers.modeling_utils import logger as model_logger
+
+[logger.setLevel(ERROR) for logger in (tokenizer_logger, file_logger, config_logger, model_logger)]
 
 
 class Config(object):
@@ -31,20 +39,21 @@ class Config(object):
         self.max_seq = 1024
         self.epochs = 4
         # 更长的序列长度，减小batch大小
-        self.batch_size = 16
+        self.batch_size = 32
         self.dropout = 0.5
         self.xlnet_hidden = 768
-        self.attn_size = 128
-        self.linear_size = 128
+        self.attn_size = 256
+        self.linear_size = 256
 
         # 梯度相关
-        self.learning_rate = 2e-5
+        self.learning_rate = 1e-5
         self.weight_decay = 1e-2
         self.warm_up_steps = 20
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
         self.xlnet_path = "/data/wangqian/berts/xlnet-base-chinese"
+        # self.xlnet_path = "/Users/Vander/Code/pytorch_col/xlnet-base-chinese"
         self.tokenizer = XLNetTokenizer.from_pretrained(self.xlnet_path)
         self.cls = self.tokenizer.cls_token
         self.sep = self.tokenizer.sep_token
@@ -136,6 +145,7 @@ class Model(nn.Module):
         self.device = config.device
         self.num_classes = config.num_classes
         self.num_labels = config.num_labels
+        self.classes = config.classes
         self.soft_max = nn.Softmax(dim=-1)
 
         self.units = list()
@@ -173,15 +183,15 @@ class Model(nn.Module):
         soft_align = self.soft_attn_align(encoded_seq, inf_mask)
         enhanced_seq = torch.cat([encoded_seq, soft_align], dim=-1)
 
-        total_logits = torch.tensor(0.0).float()
+        total_logits = list()
         total_loss, total_f1 = 0.0, 0.0
         for idx, (unit, criterion) in enumerate(self.units):
             logits = unit(enhanced_seq)
-            total_logits += logits
+            total_logits.append(logits)
             if labels:
                 label = labels[idx]
                 loss = criterion(logits, label)
-                f1 = calc_f1(logits, label)
+                f1 = calc_f1(logits, label, self.classes)
                 total_loss += loss
                 total_f1 += f1
 

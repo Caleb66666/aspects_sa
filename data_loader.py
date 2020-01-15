@@ -11,7 +11,6 @@ from utils.path_util import serialize, deserialize
 import os
 from torchtext.data import Field, LabelField, Example, Dataset, BucketIterator
 import torch
-import numpy as np
 
 
 class BatchWrapper(object):
@@ -33,7 +32,7 @@ class XlLoader(object):
         save_path = abspath(f"data/{config.name}.dl.pt")
         if not os.path.exists(save_path):
             self.init_raw(config, save_path)
-        text_field, label_field, train_df, valid_df, fields, columns = deserialize(save_path)
+        label_field, train_df, valid_df, fields, columns = deserialize(save_path)
         train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
         label_field.build_vocab(valid_ds)
 
@@ -50,48 +49,57 @@ class XlLoader(object):
         self.valid_wrapper = BatchWrapper(valid_iter, columns, len(valid_ds))
         self.classes = label_field.vocab
         config.num_classes = len(self.classes)
-
-        print(f"train len: {len(train_ds)}, valid len: {len(valid_ds)}")
+        config.num_labels = len(columns) - 3
+        config.classes = label_field.vocab
 
     @staticmethod
-    def xl_process(config, text):
+    def zero_inf_mask(ids):
+        return [float("-inf") if ele == 0 else 0.0 for ele in ids]
+
+    def xl_process(self, config, text):
         text = t2s(text)
         text = full2half(text)
         text = text.strip('"').strip()
         text = text.replace("\n", "").replace("\r", "")
 
-        tokens = [config.bos, ]
+        tokens = list()
         tokens.extend(config.tokenizer.tokenize(text))
         token_ids = config.tokenizer.convert_tokens_to_ids(tokens)
         if len(token_ids) < config.max_seq:
             mask = [1] * len(token_ids) + [0] * (config.max_seq - len(token_ids))
             token_ids += ([0] * (config.max_seq - len(token_ids)))
-            seq_len = len(tokens)
         else:
             mask = [1] * config.max_seq
             token_ids = token_ids[:config.max_seq]
-            seq_len = config.max_seq
-        return token_ids, seq_len, np.array(mask)
+        return token_ids, self.zero_inf_mask(token_ids), mask
 
     def init_raw(self, config, save_path):
         field = Field(sequential=False, use_vocab=False, batch_first=True)
+        inf_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.float)
         label_field = LabelField(sequential=False, use_vocab=True, batch_first=True)
 
         train_df = pd.read_csv(config.train_file, header=0, sep=",")
         valid_df = pd.read_csv(config.valid_file, header=0, sep=",")
-        train_df["content"], train_df["seq_len"], train_df["seq_mask"] = zip(*train_df["content"].apply(
+        train_df["content"], train_df["inf_mask"], train_df["seq_mask"] = zip(*train_df["content"].apply(
             lambda text: self.xl_process(config, text)))
-        valid_df["content"], valid_df["seq_len"], valid_df["seq_mask"] = zip(*valid_df["content"].apply(
+        valid_df["content"], valid_df["inf_mask"], valid_df["seq_mask"] = zip(*valid_df["content"].apply(
             lambda text: self.xl_process(config, text)))
         del train_df["id"], valid_df["id"]
 
-        columns = valid_df.columns.tolist()
-        fields = [(column, field) if column in ("content", "seq_len", "seq_mask") else (column, label_field) for
-                  column in columns]
-        serialize(save_path, [field, label_field, train_df, valid_df, fields, columns])
+        columns = train_df.columns.tolist()
+        fields = list()
+        for column in columns:
+            if column == "inf_mask":
+                fields.append((column, inf_field))
+            elif column in ("content", "seq_mask"):
+                fields.append((column, field))
+            else:
+                fields.append((column, label_field))
+
+        serialize(save_path, [label_field, train_df, valid_df, fields, columns])
 
     @staticmethod
-    def scan_df(df, n=60):
+    def scan_df(df, n=6):
         print(f"df len: {len(df)}\ncolumns: {df.columns.tolist()}\n")
         for row in islice(df.itertuples(), 0, n):
             print(row.content)
@@ -124,6 +132,8 @@ if __name__ == '__main__':
 
             self.seed = 279
             self.num_classes = None
+            self.num_labels = None
+            self.classes = None
             self.max_seq = 1024
             self.batch_size = 32
 
