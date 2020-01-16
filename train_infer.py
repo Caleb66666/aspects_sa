@@ -16,25 +16,25 @@ def test():
     pass
 
 
-def evaluate(model, valid_wrapper):
+def evaluate(model, valid_batches):
     loss, correct = 0.0, 0.0
 
     model.eval()
     with torch.no_grad():
-        for inputs in valid_wrapper:
+        for inputs in valid_batches:
             output_dict = model(inputs)
             loss += output_dict["loss"]
             batch_len = inputs[-1].size(0)
             correct += output_dict["f1"] * batch_len
     model.train()
-    return correct / valid_wrapper.count, loss / len(valid_wrapper)
+    return correct / valid_batches.count, loss / len(valid_batches)
 
 
-def batches_eval(model, config, optimizer, scheduler, valid_wrapper, output_dict, assist_params):
+def batches_eval(model, config, optimizer, scheduler, valid_batches, output_dict, assist_params):
     # 决定是否进行evaluate
     if assist_params['batches'] % config.eval_per_batches == 0:
         train_f1, train_loss = output_dict.get("f1"), output_dict.get("loss")
-        valid_f1, valid_loss = evaluate(model, valid_wrapper)
+        valid_f1, valid_loss = evaluate(model, valid_batches)
         config.scheduler_step(scheduler, valid_loss)
         if valid_loss < assist_params['best_loss']:
             assist_params.update({"best_loss": valid_loss, "last_improve": assist_params['batches']})
@@ -80,10 +80,10 @@ def train():
 
     # 初始化模型
     model = file_module.Model(config)
-    optimizer, scheduler = config.build_optimizer(model, len(loader.train_wrapper) * config.epochs)
-    ts_print(f"model: {args.model}, model params: {count_params(model)}, train samples: {loader.train_wrapper.count}, "
-             f"valid samples: {loader.valid_wrapper.count}, train batches: {len(loader.train_wrapper)}, "
-             f"valid batches: {len(loader.valid_wrapper)}, device: {config.device}, batch size: {config.batch_size}")
+    optimizer, scheduler = config.build_optimizer(model, len(loader.train_batches) * config.epochs)
+    ts_print(f"model: {args.model}, model params: {count_params(model)}, train samples: {loader.train_batches.count}, "
+             f"valid samples: {loader.valid_batches.count}, train batches: {len(loader.train_batches)}, "
+             f"valid batches: {len(loader.valid_batches)}, device: {config.device}, batch size: {config.batch_size}")
 
     # 是否加载旧模型
     if args.restore:
@@ -96,13 +96,13 @@ def train():
     for epoch in range(assist_params['cur_epoch'], config.epochs):
         ts_print(f"Epoch [{epoch + 1}/{config.epochs}]")
         assist_params.update({"cur_epoch": epoch})
-        for inputs in loader.train_wrapper:
+        for inputs in loader.train_batches:
             optimizer.zero_grad()
             output_dict = model(inputs)
             output_dict.get("loss").backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
-            batches_eval(model, config, optimizer, scheduler, loader.valid_wrapper, output_dict, assist_params)
+            batches_eval(model, config, optimizer, scheduler, loader.valid_batches, output_dict, assist_params)
             if assist_params["stop_flag"]:
                 break
         if assist_params["stop_flag"]:

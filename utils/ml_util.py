@@ -2,6 +2,7 @@ from torch import nn
 import torch
 from sklearn import metrics
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
@@ -63,7 +64,7 @@ def calc_accuracy(logits, label, dim=-1):
     return metrics.accuracy_score(true_y, pred_y)
 
 
-def calc_f1(logits, label, labels, dim=-1, average="micro"):
+def calc_f1(logits, label, classes, average="micro", dim=-1):
     pred_y = logits.argmax(dim=dim, keepdim=True).squeeze(dim=dim)
     true_y, pred_y = unwrap_to_tensors(label, pred_y)
-    return metrics.f1_score(true_y, pred_y, labels=labels, average=average)
+    return metrics.f1_score(true_y, pred_y, labels=classes, average=average)

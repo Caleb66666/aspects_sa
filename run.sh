@@ -1,5 +1,5 @@
 #!/bin/bash
-model_name=xlnet_attn_pool
+model_name=base_xlnet
 file="$model_name".out
 if [[ ! -f "$file" ]]; then
 	touch "$file"
