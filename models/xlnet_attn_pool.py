@@ -169,14 +169,14 @@ class Model(nn.Module):
         for idx in range(self.num_labels):
             attn_fc_unit = nn.Sequential(
                 # batch_size, seq, xlnet_hidden * 2
-                Attention(config.xlnet_hidden * 2, config.attn_size).to(config.device),
+                Attention(config.xlnet_hidden * 2, config.attn_size),
                 # batch_size, xlnet_hidden * 4
                 MultiPool(),
                 nn.BatchNorm1d(config.xlnet_hidden * 4),
                 nn.Dropout(config.dropout),
                 nn.Linear(config.xlnet_hidden * 4, config.num_classes),
             )
-            self.units.append((attn_fc_unit, nn.CrossEntropyLoss().to(config.device)))
+            self.units.append((attn_fc_unit.to(config.device), nn.CrossEntropyLoss().to(config.device)))
 
     def forward(self, inputs):
         # 输入数据解析
