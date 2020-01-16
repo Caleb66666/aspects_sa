@@ -36,10 +36,10 @@ class Config(object):
         self.improve_require = 10000
 
         # 训练样本中，小于1024长度的样本数占据约98.3%，过长则截断
-        self.max_seq = 1024
+        self.max_seq = 768
         self.epochs = 4
         # 更长的序列长度，减小batch大小
-        self.batch_size = 32
+        self.batch_size = 8
         self.dropout = 0.5
         self.xlnet_hidden = 768
         self.attn_size = 256
@@ -169,7 +169,7 @@ class Model(nn.Module):
         for idx in range(self.num_labels):
             attn_fc_unit = nn.Sequential(
                 # batch_size, seq, xlnet_hidden * 2
-                Attention(config.xlnet_hidden * 2, config.attn_size),
+                Attention(config.xlnet_hidden * 2, config.attn_size).to(config.device),
                 # batch_size, xlnet_hidden * 4
                 MultiPool(),
                 nn.BatchNorm1d(config.xlnet_hidden * 4),
