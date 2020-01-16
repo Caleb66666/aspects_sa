@@ -131,7 +131,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.xlnet = XLNetModel.from_pretrained(config.xlnet_path)
-        [setattr(param, "requires_grad", False) for param in self.xlnet.parameters()]
+        [setattr(param, "requires_grad", True) for param in self.xlnet.parameters()]
 
         self.num_classes = config.num_classes
         self.num_labels = config.num_labels
