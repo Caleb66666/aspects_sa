@@ -104,7 +104,7 @@ class Model(nn.Module):
         self.embedding = xlnet.word_embedding
         [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
 
-        self.encoder, _ = nn.LSTM(config.embed_dim, config.encode_hidden, batch_first=True, bidirectional=True)
+        self.encoder = nn.LSTM(config.embed_dim, config.encode_hidden, batch_first=True, bidirectional=True)
 
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
@@ -124,7 +124,7 @@ class Model(nn.Module):
             assert len(labels) == self.num_labels, "number labels error!"
 
         embed_seq = self.embedding(seq_ids)
-        encoded_seq = self.encoder(embed_seq)
+        encoded_seq, _ = self.encoder(embed_seq)
 
         total_logits, total_loss, total_f1 = list(), 0.0, 0.0
         for idx, (unit, criterion) in enumerate(zip(self.units, self.criterion_list)):
