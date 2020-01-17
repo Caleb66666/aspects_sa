@@ -48,8 +48,8 @@ class Config(BaseConfig):
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
-        # self.xlnet_path = "/data/wangqian/berts/xlnet-base-chinese"
-        self.xlnet_path = "/Users/Vander/Code/pytorch_col/xlnet-base-chinese"
+        self.xlnet_path = "/data/wangqian/berts/xlnet-base-chinese"
+        # self.xlnet_path = "/Users/Vander/Code/pytorch_col/xlnet-base-chinese"
         self.tokenizer = XLNetTokenizer.from_pretrained(self.xlnet_path)
         self.cls = self.tokenizer.cls_token
         self.sep = self.tokenizer.sep_token
