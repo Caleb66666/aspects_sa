@@ -11,7 +11,8 @@ from torch import nn
 from utils.path_util import abspath
 from utils.ml_util import calc_f1
 from data_loader import XlnetLoader as AlbertLoader
-from transformers import AdamW, get_linear_schedule_with_warmup, AlbertModel, AlbertTokenizer
+from transformers import AdamW, get_linear_schedule_with_warmup
+from albert_zh import AlbertTokenizer, AlbertModel
 
 from logging import ERROR
 from transformers.tokenization_utils import logger as tokenizer_logger
@@ -97,7 +98,7 @@ class Model(nn.Module):
         self.num_labels = config.num_labels
 
         # 只取其词嵌入
-        albert = AlbertModel.from_pretrained(config.xlnet_path)
+        albert = AlbertModel.from_pretrained(config.albert_path)
         [setattr(param, "requires_grad", False) for param in albert.parameters()]
         self.embedding = albert.get_input_embeddings()
         [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
