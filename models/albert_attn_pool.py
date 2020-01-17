@@ -100,7 +100,7 @@ class Model(nn.Module):
         # 只取其词嵌入
         albert = AlbertModel.from_pretrained(config.albert_path)
         [setattr(param, "requires_grad", False) for param in albert.parameters()]
-        self.embedding = albert.get_input_embeddings()
+        self.embedding = albert.embeddings.word_embeddings
         [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
 
         self.encoder = nn.LSTM(config.embed_dim, config.encode_hidden, batch_first=True, bidirectional=True)
