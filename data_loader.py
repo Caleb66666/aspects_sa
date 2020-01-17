@@ -170,7 +170,6 @@ class XlnetLoader(BaseLoader):
     def init_raw(self, config):
         train_df = pd.read_csv(config.train_file, header=0, sep=",")
         valid_df = pd.read_csv(config.valid_file, header=0, sep=",")
-        train_df, valid_df = train_df[:10], valid_df[:10]
         for df in (train_df, valid_df):
             df["seq_ids"], df["seq_len"], df["seq_mask"], df["inf_mask"] = zip(
                 *df["content"].apply(lambda content: self.text_process(content, config)))

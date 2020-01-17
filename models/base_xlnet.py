@@ -104,7 +104,7 @@ class Model(nn.Module):
         self.embedding = xlnet.word_embedding
         [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
 
-        self.encoder = nn.LSTM(config.embed_dim, config.encode_hidden, batch_first=True, bidirectional=True)
+        self.encoder, _ = nn.LSTM(config.embed_dim, config.encode_hidden, batch_first=True, bidirectional=True)
 
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
