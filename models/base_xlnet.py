@@ -109,8 +109,8 @@ class Model(nn.Module):
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
             unit = nn.Sequential(
-                Attn(config.encode_hidden),
-                nn.Linear(config.encode_hidden, config.linear_size),
+                Attn(config.encode_hidden * 2),
+                nn.Linear(config.encode_hidden * 2, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
                 nn.Dropout(config.dropout),
