@@ -36,7 +36,7 @@ class Config(BaseConfig):
         # 训练样本中，小于1024长度的样本数占据约98.3%，过长则截断
         self.max_seq = 1024
         self.epochs = 10
-        self.batch_size = 2
+        self.batch_size = 32
         self.dropout = 0.5
         self.embed_dim = 768
         self.encode_hidden = 512

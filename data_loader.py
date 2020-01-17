@@ -31,9 +31,10 @@ class BatchWrapper(object):
 class BaseLoader(object):
     def __init__(self):
         # 我们的数据处理包括分词、映射转换均使用自己的方法，不依赖torchtext，故设置sequential=False
-        self.long_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.long)
-        self.float_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.float)
-        self.label_field = LabelField(sequential=False, use_vocab=True, batch_first=True)
+        # self.long_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.long)
+        # self.float_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.float)
+        # self.label_field = LabelField(sequential=False, use_vocab=True, batch_first=True)
+        pass
 
     def text_process(self, text, config):
         raise NotImplementedError
@@ -127,11 +128,11 @@ class XlnetLoader(BaseLoader):
         # self.stat_seq(train_df, config.max_seq, "content")
 
         if not os.path.exists(config.dl_path):
-            train_df, valid_df, fields, columns = self.init_raw(config)
+            train_df, valid_df, fields, label_field, columns = self.init_raw(config)
         else:
-            train_df, valid_df, fields, columns = deserialize(config.dl_path)
+            train_df, valid_df, fields, label_field, columns = deserialize(config.dl_path)
         train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
-        self.label_field.build_vocab(train_ds)
+        label_field.build_vocab(train_ds)
 
         train_iter, valid_iter = BucketIterator.splits(
             (train_ds, valid_ds),
@@ -145,7 +146,7 @@ class XlnetLoader(BaseLoader):
         self.train_batches = BatchWrapper(train_iter, columns, len(train_ds))
         self.valid_batches = BatchWrapper(valid_iter, columns, len(valid_ds))
 
-        config.classes = self.label_field.vocab
+        config.classes = label_field.vocab
         config.num_classes = len(config.classes)
         config.num_labels = len(columns) - 4
 
@@ -168,6 +169,10 @@ class XlnetLoader(BaseLoader):
         return seq_ids, seq_len, seq_mask, self.calc_inf_mask(seq_ids)
 
     def init_raw(self, config):
+        long_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.long)
+        float_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.float)
+        label_field = LabelField(sequential=False, use_vocab=True, batch_first=True)
+
         train_df = pd.read_csv(config.train_file, header=0, sep=",")
         valid_df = pd.read_csv(config.valid_file, header=0, sep=",")
         for df in (train_df, valid_df):
@@ -178,13 +183,13 @@ class XlnetLoader(BaseLoader):
         fields, columns = list(), train_df.columns.tolist()
         for column in columns:
             if column in ("seq_ids", "seq_len", "seq_mask"):
-                fields.append((column, self.long_field))
+                fields.append((column, long_field))
             elif column in ("inf_mask",):
-                fields.append((column, self.float_field))
+                fields.append((column, float_field))
             else:
-                fields.append((column, self.label_field))
-        serialize(config.dl_path, [train_df, valid_df, fields, columns])
-        return train_df, valid_df, fields, columns
+                fields.append((column, label_field))
+        serialize(config.dl_path, [train_df, valid_df, fields, label_field, columns])
+        return train_df, valid_df, fields, label_field, columns
 
 
 if __name__ == '__main__':
