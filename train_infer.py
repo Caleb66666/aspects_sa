@@ -24,10 +24,9 @@ def evaluate(model, valid_batches):
         for inputs in valid_batches:
             output_dict = model(inputs)
             loss += output_dict["loss"]
-            batch_len = inputs[-1].size(0)
-            correct += output_dict["f1"] * batch_len
+            correct += output_dict["f1"]
     model.train()
-    return correct / valid_batches.count, loss / len(valid_batches)
+    return correct / len(valid_batches), loss / len(valid_batches)
 
 
 def batches_eval(model, config, optimizer, scheduler, valid_batches, output_dict, assist_params):
@@ -39,7 +38,7 @@ def batches_eval(model, config, optimizer, scheduler, valid_batches, output_dict
         if valid_loss < assist_params['best_loss']:
             assist_params.update({"best_loss": valid_loss, "last_improve": assist_params['batches']})
             loss_improved = "*"
-            config.save_model(model, optimizer, assist_params['cur_epoch'], assist_params['best_loss'])
+            config.save_model(model, optimizer, scheduler, assist_params['cur_epoch'], assist_params['best_loss'])
         else:
             loss_improved = ""
         cur_lr = optimizer.state_dict()["param_groups"][0]["lr"]
@@ -87,7 +86,7 @@ def train():
 
     # 是否加载旧模型
     if args.restore:
-        model, optimizer, epoch, best_loss = config.restore_model(model, optimizer)
+        model, optimizer, scheduler, epoch, best_loss = config.restore_model(model, optimizer)
         assist_params.update({"cur_epoch": epoch, "best_loss": best_loss})
         ts_print(f"restore model, stopped epoch: {epoch}, best loss: {best_loss:>5.4}")
 
