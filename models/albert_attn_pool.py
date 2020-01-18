@@ -140,7 +140,7 @@ class Model(nn.Module):
             total_logits.append(logits)
             if labels:
                 total_loss += criterion(logits, labels[idx])
-                total_f1 += calc_f1(logits, labels[idx], self.classes, average="macro")
+                total_f1 += calc_f1(logits, labels[idx], self.classes, average="micro")
 
         output_dict = {
             "logits": total_logits
