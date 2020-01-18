@@ -157,16 +157,23 @@ class Model(nn.Module):
         self.embedding = albert.embeddings.word_embeddings
         [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
 
+        self.bn = nn.BatchNorm2d(config.max_seq, config.embed_dim)
         self.fc = nn.Sequential(
-            nn.BatchNorm1d(config.embed_dim),
-            nn.Linear(config.embed_dim, config.linear_size),
-            nn.ELU(inplace=True),
+            nn.Linear(config.embed_dim * 2, config.linear_size),
             nn.BatchNorm1d(config.linear_size),
+            nn.ELU(inplace=True),
             nn.Dropout(config.dropout),
             nn.Linear(config.linear_size, config.num_classes)
         )
+
         self.soft_max = nn.Softmax(dim=-1)
         self.criterion = nn.CrossEntropyLoss().to(config.device)
+
+    @staticmethod
+    def avg_max_pooling(tensor):
+        avg_p = torch.avg_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        max_p = torch.max_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        return torch.cat([avg_p, max_p], dim=1)
 
     def forward(self, inputs):
         labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
@@ -174,7 +181,11 @@ class Model(nn.Module):
         label = labels[0]
         embed_seq = self.embedding(seq_ids)
         print(embed_seq.size())
-        logits = self.fc(embed_seq)
+
+        pooled_seq = self.avg_max_pooling(embed_seq)
+        print(pooled_seq.size())
+
+        logits = self.fc(pooled_seq)
         print(logits.size())
         loss = self.criterion(logits, label)
         f1 = calc_f1(logits, label, classes=self.classes, average="macro")
