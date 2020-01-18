@@ -197,4 +197,5 @@ class Model(nn.Module):
             "f1": f1,
             "loss": loss
         }
+        print(f"f1: {f1}, loss: {loss}")
         return output_dict
