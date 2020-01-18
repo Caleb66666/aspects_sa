@@ -101,13 +101,11 @@ def train():
             output_dict.get("loss").backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
+            batches_eval(model, config, optimizer, scheduler, loader.valid_batches, output_dict, assist_params)
+            if assist_params["stop_flag"]:
+                break
+        if assist_params["stop_flag"]:
             break
-            # batches_eval(model, config, optimizer, scheduler, loader.valid_batches, output_dict, assist_params)
-            # if assist_params["stop_flag"]:
-            #     break
-        # if assist_params["stop_flag"]:
-        #     break
-        break
     assist_params["writer"].close()
 
 

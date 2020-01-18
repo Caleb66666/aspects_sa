@@ -147,7 +147,6 @@ class XlnetLoader(BaseLoader):
         self.valid_batches = BatchWrapper(valid_iter, columns, len(valid_ds))
 
         config.classes = list(label_field.vocab.stoi.values())
-        print(config.classes)
         config.num_classes = len(config.classes)
         config.num_labels = len(columns) - 4
 

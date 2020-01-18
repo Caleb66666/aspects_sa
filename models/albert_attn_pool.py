@@ -13,8 +13,6 @@ from utils.ml_util import calc_f1
 from data_loader import XlnetLoader as AlbertLoader
 from transformers import AdamW, get_linear_schedule_with_warmup
 from albert_zh import AlbertTokenizer, AlbertModel
-from sklearn import metrics
-
 
 from logging import ERROR
 from transformers.tokenization_utils import logger as tokenizer_logger
@@ -45,11 +43,11 @@ class Config(BaseConfig):
         # 训练样本中，小于1024长度的样本数占据约98.3%，过长则截断
         self.max_seq = 1024
         self.epochs = 10
-        self.batch_size = 2
+        self.batch_size = 32
         self.dropout = 0.5
         self.embed_dim = 128
-        self.encode_hidden = 512
-        self.linear_size = 512
+        self.encode_hidden = 256
+        self.linear_size = 256
 
         self.lr = 5e-5
         self.weight_decay = 1e-2
@@ -78,21 +76,27 @@ class Config(BaseConfig):
         return optimizer, scheduler
 
 
-class Attn(nn.Module):
+class AttnPool(nn.Module):
     def __init__(self, hidden_size):
         super().__init__()
 
         self.w = nn.Parameter(torch.zeros(hidden_size), requires_grad=True)
         self.w.data.normal_(-1e-4, 1e-4)
 
+    @staticmethod
+    def avg_max_pooling(tensor):
+        avg_p = torch.avg_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        max_p = torch.max_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        return torch.cat([avg_p, max_p], dim=1)
+
     def forward(self, h):
         m = torch.tanh(h)
         alpha = torch.softmax(torch.matmul(m, self.w), dim=1).unsqueeze(-1)
         out = h * alpha
-        return torch.sum(out, 1)
+        return self.avg_max_pooling(out)
 
 
-class OldModel(nn.Module):
+class Model(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.classes = config.classes
@@ -110,8 +114,9 @@ class OldModel(nn.Module):
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
             unit = nn.Sequential(
-                Attn(config.encode_hidden * 2),
-                nn.Linear(config.encode_hidden * 2, config.linear_size),
+                # bach_size, encode_hidden * 4
+                AttnPool(config.encode_hidden * 4),
+                nn.Linear(config.encode_hidden * 4, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
                 nn.Dropout(config.dropout),
@@ -124,7 +129,9 @@ class OldModel(nn.Module):
         if labels:
             assert len(labels) == self.num_labels, "number labels error!"
 
+        # batch_size, seq_len, embed_dim
         embed_seq = self.embedding(seq_ids)
+        # batch_size, seq_len, encode_hidden * 2
         encoded_seq, _ = self.encoder(embed_seq)
 
         total_logits, total_loss, total_f1 = list(), 0.0, 0.0
@@ -143,59 +150,4 @@ class OldModel(nn.Module):
                 "f1": total_f1 / self.num_labels,
                 "loss": total_loss / self.num_labels
             })
-        return output_dict
-
-
-class Model(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-
-        self.name_classes = config.num_classes
-        self.classes = config.classes
-
-        # 只取其词嵌入
-        albert = AlbertModel.from_pretrained(config.albert_path)
-        [setattr(param, "requires_grad", False) for param in albert.parameters()]
-        self.embedding = albert.embeddings.word_embeddings
-        [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
-
-        self.bn = nn.BatchNorm2d(config.max_seq, config.embed_dim)
-        self.fc = nn.Sequential(
-            nn.Linear(config.embed_dim * 2, config.linear_size),
-            nn.BatchNorm1d(config.linear_size),
-            nn.ELU(inplace=True),
-            nn.Dropout(config.dropout),
-            nn.Linear(config.linear_size, config.num_classes)
-        )
-
-        self.soft_max = nn.Softmax(dim=-1)
-        self.criterion = nn.CrossEntropyLoss().to(config.device)
-
-    @staticmethod
-    def avg_max_pooling(tensor):
-        avg_p = torch.avg_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
-        max_p = torch.max_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
-        return torch.cat([avg_p, max_p], dim=1)
-
-    def forward(self, inputs):
-        labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
-
-        label = labels[0]
-        embed_seq = self.embedding(seq_ids)
-        print(embed_seq.size())
-
-        pooled_seq = self.avg_max_pooling(embed_seq)
-        print(pooled_seq.size())
-
-        logits = self.fc(pooled_seq)
-        print(logits.size())
-        loss = self.criterion(logits, label)
-        print(f"label: {label}, class: {self.classes}")
-        f1 = calc_f1(logits, label, classes=self.classes, average="micro")
-        output_dict = {
-            "logits": logits,
-            "f1": f1,
-            "loss": loss
-        }
-        print(f"f1: {f1}, loss: {loss}")
         return output_dict
