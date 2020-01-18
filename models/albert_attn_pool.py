@@ -115,7 +115,7 @@ class Model(nn.Module):
         for _ in range(self.num_labels):
             unit = nn.Sequential(
                 # bach_size, encode_hidden * 4
-                AttnPool(config.encode_hidden * 4),
+                AttnPool(config.encode_hidden * 2),
                 nn.Linear(config.encode_hidden * 4, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
