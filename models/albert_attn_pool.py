@@ -90,7 +90,7 @@ class Attn(nn.Module):
         return torch.sum(out, 1)
 
 
-class Model(nn.Module):
+class OldModel(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.classes = config.classes
@@ -141,4 +141,46 @@ class Model(nn.Module):
                 "f1": total_f1 / self.num_labels,
                 "loss": total_loss / self.num_labels
             })
+        return output_dict
+
+
+class Model(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+
+        self.name_classes = config.num_classes
+        self.classes = config.classes
+
+        # 只取其词嵌入
+        albert = AlbertModel.from_pretrained(config.albert_path)
+        [setattr(param, "requires_grad", False) for param in albert.parameters()]
+        self.embedding = albert.embeddings.word_embeddings
+        [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
+
+        self.fc = nn.Sequential(
+            nn.BatchNorm1d(config.embed_dim),
+            nn.Linear(config.embed_dim, config.linear_size),
+            nn.ELU(inplace=True),
+            nn.BatchNorm1d(config.linear_size),
+            nn.Dropout(config.dropout),
+            nn.Linear(config.linear_size, config.num_classes)
+        )
+        self.soft_max = nn.Softmax(dim=-1)
+        self.criterion = nn.CrossEntropyLoss().to(config.device)
+
+    def forward(self, inputs):
+        labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
+
+        label = labels[0]
+        embed_seq = self.embedding(seq_ids)
+        print(embed_seq.size())
+        logits = self.fc(embed_seq)
+        print(logits.size())
+        loss = self.criterion(logits, label)
+        f1 = calc_f1(logits, label, classes=self.classes, average="macro")
+        output_dict = {
+            "logits": logits,
+            "f1": f1,
+            "loss": loss
+        }
         return output_dict
