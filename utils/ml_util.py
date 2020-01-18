@@ -66,5 +66,5 @@ def calc_accuracy(logits, label, dim=-1):
 
 def calc_f1(logits, label, classes, average="micro", dim=-1):
     pred_y = logits.argmax(dim=dim, keepdim=True).squeeze(dim=dim)
-    true_y, pred_y = unwrap_to_tensors(label, pred_y)
+    true_y, pred_y, classes = unwrap_to_tensors(label, pred_y, classes)
     return metrics.f1_score(true_y, pred_y, labels=classes, average=average)

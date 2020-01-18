@@ -38,6 +38,7 @@ ALBERT_PRETRAINED_MODEL_ARCHIVE_MAP = {
     'albert-base-zh': "",
 }
 
+
 def load_tf_weights_in_albert(model, config, tf_checkpoint_path):
     """ Load tf checkpoints in a pytorch model.
     """
@@ -132,6 +133,7 @@ except (ImportError, AttributeError) as e:
 class AlbertEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings.
     """
+
     def __init__(self, config):
         super(AlbertEmbeddings, self).__init__()
         self.word_embeddings = nn.Embedding(config.vocab_size, config.embedding_size, padding_idx=0)
@@ -287,6 +289,7 @@ class BertAttention(nn.Module):
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         return outputs
 
+
 class BertIntermediate(nn.Module):
     def __init__(self, config):
         super(BertIntermediate, self).__init__()
@@ -320,7 +323,6 @@ class BertOutput(nn.Module):
             # postln
             hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
-
 
 
 class BertLayer(nn.Module):
@@ -718,11 +720,10 @@ class AlbertForPreTraining(AlbertPreTrainedModel):
             Export to TorchScript can't handle parameter sharing so we are cloning them instead.
         """
         self._tie_or_clone_weights(self.cls.predictions.decoder,
-                                       self.bert.embeddings.word_embeddings)
+                                   self.bert.embeddings.word_embeddings)
 
     def forward(self, input_ids, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None,
                 masked_lm_labels=None, next_sentence_label=None):
-
         outputs = self.bert(input_ids,
                             attention_mask=attention_mask,
                             token_type_ids=token_type_ids,
