@@ -13,6 +13,8 @@ from utils.ml_util import calc_f1
 from data_loader import XlnetLoader as AlbertLoader
 from transformers import AdamW, get_linear_schedule_with_warmup
 from albert_zh import AlbertTokenizer, AlbertModel
+from sklearn import metrics
+
 
 from logging import ERROR
 from transformers.tokenization_utils import logger as tokenizer_logger
@@ -188,7 +190,8 @@ class Model(nn.Module):
         logits = self.fc(pooled_seq)
         print(logits.size())
         loss = self.criterion(logits, label)
-        f1 = calc_f1(logits, label, classes=self.classes, average="macro")
+        print(f"label: {label}, class: {self.classes}")
+        f1 = calc_f1(logits, label, classes=self.classes, average="micro")
         output_dict = {
             "logits": logits,
             "f1": f1,
