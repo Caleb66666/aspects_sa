@@ -122,8 +122,7 @@ class Model(nn.Module):
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
             unit = nn.Sequential(
-                # bach_size, encode_hidden * 4
-                AttnPool(config.encode_hidden * 2, config.attn_size),
+                AttnPool(config.encode_hidden * 2, config.attn_size),  # bach_size, encode_hidden * 4
                 nn.Linear(config.encode_hidden * 4, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
@@ -133,29 +132,28 @@ class Model(nn.Module):
             self.criterion_list.append(nn.CrossEntropyLoss().to(config.device))
 
     def forward(self, inputs):
+        # 解析输入项
         labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
-        if labels:
-            assert len(labels) == self.num_labels, "number labels error!"
 
-        # batch_size, seq_len, embed_dim
-        embed_seq = self.embedding(seq_ids)
-        # batch_size, seq_len, encode_hidden * 2
-        encoded_seq, _ = self.encoder(embed_seq)
+        # test流程
+        if not labels:
+            embed_seq = self.embedding(seq_ids)
+            encoded_seq, _ = self.encoder(embed_seq)
+            return {"logits": [unit(encoded_seq) for unit in self.units]}
 
+        # train流程
+        assert len(labels) == self.num_labels, "number labels error!"
+        embed_seq = self.embedding(seq_ids)  # batch_size, seq_len, embed_dim
+        encoded_seq, _ = self.encoder(embed_seq)  # batch_size, seq_len, encode_hidden * 2
         total_logits, total_loss, total_f1 = list(), 0.0, 0.0
-        for idx, (unit, criterion) in enumerate(zip(self.units, self.criterion_list)):
+        for unit, criterion, label in zip(self.units, self.criterion_list, labels):
             logits = unit(encoded_seq)
             total_logits.append(logits)
-            if labels:
-                total_loss += criterion(logits, labels[idx])
-                total_f1 += calc_f1(logits, labels[idx], self.classes, average="micro")
+            total_loss += criterion(logits, label)
+            total_f1 += calc_f1(logits, label, self.classes, average="micro")
 
-        output_dict = {
-            "logits": total_logits
+        return {
+            "logits": total_logits,
+            "f1": total_f1 / self.num_labels,
+            "loss": total_loss / self.num_labels
         }
-        if labels:
-            output_dict.update({
-                "f1": total_f1 / self.num_labels,
-                "loss": total_loss / self.num_labels
-            })
-        return output_dict
