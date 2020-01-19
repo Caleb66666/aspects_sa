@@ -22,7 +22,7 @@ class Config(BaseConfig):
 
         self.train_file = abspath("data/train.csv")
         self.valid_file = abspath("data/valid.csv")
-        self.loader_cls = XlnetLoader
+        self.loader_cls = XLNetModel
         self.dl_path = abspath(f"data/{self.name}.pt")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -30,21 +30,21 @@ class Config(BaseConfig):
         self.num_classes = None
         self.num_labels = None
         self.classes = None
-        self.eval_per_batches = 100
-        self.improve_require = 20000
+        self.eval_per_batches = 200
+        self.improve_require = 40000
 
         # 训练样本中，小于1024长度的样本数占据约98.3%，过长则截断
         self.max_seq = 1024
-        self.epochs = 10
-        self.batch_size = 32
+        self.epochs = 20
+        self.batch_size = 64
         self.dropout = 0.5
-        self.embed_dim = 768
-        self.encode_hidden = 512
-        self.linear_size = 512
+        self.xlnet_hidden = 768
+        self.attn_size = 128
+        self.linear_size = 128
 
-        self.lr = 1e-4
-        self.weight_decay = 1e-4
-        self.warm_up_steps = 40
+        self.lr = 5e-5
+        self.weight_decay = 1e-2
+        self.warm_up_steps = 50
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
@@ -53,14 +53,6 @@ class Config(BaseConfig):
         self.tokenizer = XLNetTokenizer.from_pretrained(self.xlnet_path)
         self.cls = self.tokenizer.cls_token
         self.sep = self.tokenizer.sep_token
-
-        self.model_dir = abspath(f"checkpoints/{self.name}")
-        if not os.path.exists(self.model_dir):
-            os.makedirs(self.model_dir)
-        self.model_ckpt = os.path.join(self.model_dir, "{}.%s.ckpt" % self.name)
-        self.summary_dir = abspath(f"summary/{self.name}")
-        if not os.path.exists(self.summary_dir):
-            os.makedirs(self.summary_dir)
 
     def build_optimizer(self, model, t_total):
         opt_params = list(model.named_parameters())
@@ -77,18 +69,32 @@ class Config(BaseConfig):
         return optimizer, scheduler
 
 
-class Attn(nn.Module):
-    def __init__(self, hidden_size):
+class AttnPool(nn.Module):
+    def __init__(self, hidden_size, attn_size):
         super().__init__()
 
-        self.w = nn.Parameter(torch.zeros(hidden_size), requires_grad=True)
-        self.w.data.normal_(-1e-4, 1e-4)
+        self.w = nn.Parameter(torch.zeros(hidden_size, attn_size), requires_grad=True)
+        self.u = nn.Parameter(torch.zeros(attn_size), requires_grad=True)
+        [p.data.normal_(-1e-4, 1e-4) for p in (self.w, self.u)]
+
+    @staticmethod
+    def avg_max_pool(tensor):
+        """
+        一般tensor为三维矩阵，pool的层级一般是seq_len层级
+        :param tensor:
+        :return:
+        """
+        avg_p = torch.avg_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        max_p = torch.max_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        return torch.cat([avg_p, max_p], dim=1)
 
     def forward(self, h):
-        m = torch.tanh(h)
-        alpha = torch.softmax(torch.matmul(m, self.w), dim=1).unsqueeze(-1)
+        squeeze_h = torch.matmul(h, self.w)
+        m = torch.tanh(squeeze_h)
+        alpha = torch.softmax(torch.matmul(m, self.u), dim=1).unsqueeze(-1)
         out = h * alpha
-        return torch.sum(out, 1)
+        # return torch.sum(out, 1)
+        return self.avg_max_pool(out)
 
 
 class Model(nn.Module):
@@ -98,19 +104,14 @@ class Model(nn.Module):
         self.num_classes = config.num_classes
         self.num_labels = config.num_labels
 
-        # 只取其词嵌入
-        xlnet = XLNetModel.from_pretrained(config.xlnet_path)
-        [setattr(param, "requires_grad", False) for param in xlnet.parameters()]
-        self.embedding = xlnet.word_embedding
-        [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
-
-        self.encoder = nn.LSTM(config.embed_dim, config.encode_hidden, batch_first=True, bidirectional=True)
+        self.xlnet = XLNetModel.from_pretrained(config.xlnet_path)
+        [setattr(param, "requires_grad", True) for param in self.xlnet.parameters()]
 
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
             unit = nn.Sequential(
-                Attn(config.encode_hidden * 2),
-                nn.Linear(config.encode_hidden * 2, config.linear_size),
+                AttnPool(config.xlnet_hidden, config.attn_size),
+                nn.Linear(config.xlnet_hidden, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
                 nn.Dropout(config.dropout),
@@ -120,26 +121,25 @@ class Model(nn.Module):
 
     def forward(self, inputs):
         labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
-        if labels:
-            assert len(labels) == self.num_labels, "number labels error!"
 
-        embed_seq = self.embedding(seq_ids)
-        encoded_seq, _ = self.encoder(embed_seq)
+        # test流程
+        if not labels:
+            encoded_seq = self.xlnet(seq_ids)[0]
+            return {"logits": [unit(encoded_seq) for unit in self.units]}
+
+        # train流程
+        assert len(labels) == self.num_labels, "number of labels error!"
+        encoded_seq = self.xlnet(seq_ids)[0]
 
         total_logits, total_loss, total_f1 = list(), 0.0, 0.0
-        for idx, (unit, criterion) in enumerate(zip(self.units, self.criterion_list)):
+        for unit, criterion, label in zip(self.units, self.criterion_list, labels):
             logits = unit(encoded_seq)
             total_logits.append(logits)
-            if labels:
-                total_loss += criterion(logits, labels[idx])
-                total_f1 += calc_f1(logits, labels[idx], self.classes, average="macro")
+            total_loss += criterion(logits, label)
+            total_f1 += calc_f1(logits, label, self.classes, average="micro")
 
-        output_dict = {
-            "logits": total_logits
+        return {
+            "logits": total_logits,
+            "f1": total_f1 / self.num_labels,
+            "loss": total_loss / self.num_labels
         }
-        if labels:
-            output_dict.update({
-                "f1": total_f1 / self.num_labels,
-                "loss": total_loss / self.num_labels
-            })
-        return output_dict
