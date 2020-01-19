@@ -43,9 +43,9 @@ def batches_eval(model, config, optimizer, scheduler, valid_batches, output_dict
             loss_improved = ""
         cur_lr = optimizer.state_dict()["param_groups"][0]["lr"]
         ts_print(
-            f"Iter: {assist_params['batches']:>5}, Train Loss: {train_loss:>5.5f}, Train F1: {train_f1 * 100:6.2f}%, "
-            f"Valid Loss: {valid_loss:>5.5f}, Valid F1: {valid_f1 * 100:6.2f}%, Current LR: {cur_lr:.9f} "
-            f"{loss_improved}")
+            f"Iter: {assist_params['batches']:>5}/{assist_params['total_batches']}, Train Loss: {train_loss:>5.5f}, "
+            f"Train F1: {train_f1 * 100:6.2f}%, Valid Loss: {valid_loss:>5.5f}, Valid F1: {valid_f1 * 100:6.2f}%, "
+            f"Current LR: {cur_lr:.9f} {loss_improved}")
         writer = assist_params.get("writer")
         writer.add_scalar("train/loss", train_loss, assist_params["batches"])
         writer.add_scalar("train/f1", train_f1, assist_params["batches"])
@@ -74,7 +74,8 @@ def train():
         "last_improve": 0,  # 当前最佳valid loss对应的batches数
         "writer": SummaryWriter(config.summary_dir),
         "stop_flag": False,  # 训练停止
-        "cur_epoch": 0
+        "cur_epoch": 0,
+        "total_batches": config.epochs * len(loader.train_batches)
     }
 
     # 初始化模型
