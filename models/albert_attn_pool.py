@@ -37,21 +37,22 @@ class Config(BaseConfig):
         self.num_classes = None
         self.num_labels = None
         self.classes = None
-        self.eval_per_batches = 100
-        self.improve_require = 20000
+        self.eval_per_batches = 200
+        self.improve_require = 40000
 
         # 训练样本中，小于1024长度的样本数占据约98.3%，过长则截断
         self.max_seq = 1024
-        self.epochs = 10
-        self.batch_size = 32
+        self.epochs = 20
+        self.batch_size = 64
         self.dropout = 0.5
         self.embed_dim = 128
-        self.encode_hidden = 256
+        self.encode_hidden = 512
+        self.attn_size = 256
         self.linear_size = 256
 
         self.lr = 5e-5
         self.weight_decay = 1e-2
-        self.warm_up_steps = 40
+        self.warm_up_steps = 50
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
@@ -77,23 +78,30 @@ class Config(BaseConfig):
 
 
 class AttnPool(nn.Module):
-    def __init__(self, hidden_size):
+    def __init__(self, hidden_size, attn_size):
         super().__init__()
 
-        self.w = nn.Parameter(torch.zeros(hidden_size), requires_grad=True)
-        self.w.data.normal_(-1e-4, 1e-4)
+        self.w = nn.Parameter(torch.zeros(hidden_size, attn_size), requires_grad=True)
+        self.u = nn.Parameter(torch.zeros(attn_size), requires_grad=True)
+        [p.data.normal_(-1e-4, 1e-4) for p in (self.w, self.u)]
 
     @staticmethod
-    def avg_max_pooling(tensor):
+    def avg_max_pool(tensor):
+        """
+        一般tensor为三维矩阵，pool的层级一般是seq_len层级
+        :param tensor:
+        :return:
+        """
         avg_p = torch.avg_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
         max_p = torch.max_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
         return torch.cat([avg_p, max_p], dim=1)
 
     def forward(self, h):
-        m = torch.tanh(h)
-        alpha = torch.softmax(torch.matmul(m, self.w), dim=1).unsqueeze(-1)
+        squeeze_h = torch.matmul(h, self.w)
+        m = torch.tanh(squeeze_h)
+        alpha = torch.softmax(torch.matmul(m, self.u), dim=1).unsqueeze(-1)
         out = h * alpha
-        return self.avg_max_pooling(out)
+        return self.avg_max_pool(out)
 
 
 class Model(nn.Module):
@@ -115,7 +123,7 @@ class Model(nn.Module):
         for _ in range(self.num_labels):
             unit = nn.Sequential(
                 # bach_size, encode_hidden * 4
-                AttnPool(config.encode_hidden * 2),
+                AttnPool(config.encode_hidden * 2, config.attn_size),
                 nn.Linear(config.encode_hidden * 4, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
