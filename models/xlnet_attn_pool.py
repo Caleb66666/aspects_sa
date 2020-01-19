@@ -36,7 +36,7 @@ class Config(BaseConfig):
         # 训练样本中，小于1024长度的样本数占据约98.3%，过长则截断
         self.max_seq = 1024
         self.epochs = 20
-        self.batch_size = 64
+        self.batch_size = 16
         self.dropout = 0.5
         self.xlnet_hidden = 768
         self.attn_size = 128
