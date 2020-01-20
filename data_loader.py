@@ -12,6 +12,9 @@ import os
 from torchtext.data import Field, LabelField, Example, Dataset, BucketIterator
 import torch
 import matplotlib.pyplot as plt
+from pandarallel import pandarallel
+
+pandarallel.initialize(nb_workers=4)
 
 
 class BatchWrapper(object):
@@ -177,7 +180,7 @@ class XlnetLoader(BaseLoader):
         valid_df = pd.read_csv(config.valid_file, header=0, sep=",")
         for df in (train_df, valid_df):
             df["seq_ids"], df["seq_len"], df["seq_mask"], df["inf_mask"] = zip(
-                *df["content"].apply(lambda content: self.text_process(content, config)))
+                *df["content"].parallel_apply(lambda content: self.text_process(content, config)))
             df.drop(columns=["id", "content"], inplace=True)
 
         fields, columns = list(), train_df.columns.tolist()

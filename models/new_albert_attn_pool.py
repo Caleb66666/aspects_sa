@@ -1,12 +1,12 @@
-# @File: albert_attn_pool
+# @File: new_albert_attn_pool
 # @Author : Caleb
 # @Email: VanderLancer@gmail.com
-# @time: 2020/1/18 00:54:32
-
+# @time: 2020/1/20 20:05:51
 
 import os
 import torch
-from models.base_config import BaseConfig
+import math
+from models.new_base_config import BaseConfig
 from torch import nn
 from utils.path_util import abspath
 from utils.ml_util import calc_f1
@@ -14,55 +14,42 @@ from data_loader import XlnetLoader as AlbertLoader
 from transformers import AdamW, get_linear_schedule_with_warmup
 from chinese_albert import AlbertTokenizer, AlbertModel
 
-from logging import ERROR
-from transformers.tokenization_utils import logger as tokenizer_logger
-from transformers.file_utils import logger as file_logger
-from transformers.configuration_utils import logger as config_logger
-from transformers.modeling_utils import logger as model_logger
-
-[logger.setLevel(ERROR) for logger in (tokenizer_logger, file_logger, config_logger, model_logger)]
-
 
 class Config(BaseConfig):
-    def __init__(self):
-        super(Config, self).__init__(os.path.basename(__file__).split(".")[0])
-
+    def __init__(self, seed, debug=False):
         self.train_file = abspath("data/train.csv")
         self.valid_file = abspath("data/valid.csv")
         self.loader_cls = AlbertLoader
-        self.dl_path = abspath(f"data/{self.name}.pt")
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.seed = None
         self.num_classes = None
         self.num_labels = None
         self.classes = None
+        self.improve_require = 50000
         self.eval_per_batches = 200
-        self.improve_require = 40000
+        self.schedule_per_batches = 200
 
-        # 训练样本中，小于1024长度的样本数占据约98.3%，过长则截断
+        self.epochs = 30
         self.max_seq = 1024
-        self.epochs = 20
-        self.batch_size = 64
-        self.dropout = 0.5
+        self.batch_size = 4
         self.embed_dim = 128
-        self.encode_hidden = 512
-        self.attn_size = 128
+        self.encode_hidden = 256
         self.linear_size = 128
 
         self.lr = 5e-5
+        self.dropout = 0.5
         self.weight_decay = 1e-2
-        self.warm_up_steps = 50
+        self.warm_up_proportion = 0.1
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
         self.albert_path = "/data/wangqian/berts/albert-base-chinese"
-        # self.albert_path = "/Users/Vander/Code/pytorch_col/albert-base-chinese"
         self.tokenizer = AlbertTokenizer.from_pretrained(self.albert_path)
         self.cls = self.tokenizer.cls_token
         self.sep = self.tokenizer.sep_token
 
-    def build_optimizer(self, model, t_total):
+        super(Config, self).__init__(os.path.basename(__file__).split(".")[0], seed, debug)
+
+    def build_optimizer_scheduler(self, model, train_batches_len):
         opt_params = list(model.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         grouped_params = [
@@ -72,36 +59,26 @@ class Config(BaseConfig):
              'weight_decay': 0.0}
         ]
         optimizer = AdamW(grouped_params, lr=self.lr, eps=self.adam_epsilon)
-        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=self.warm_up_steps,
-                                                    num_training_steps=int(t_total / self.eval_per_batches) + 1)
+
+        schedule_steps = math.ceil(train_batches_len * self.epochs / self.schedule_per_batches)
+        warm_up_steps = math.ceil(schedule_steps * self.warm_up_proportion)
+        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warm_up_steps,
+                                                    num_training_steps=schedule_steps)
         return optimizer, scheduler
 
 
 class AttnPool(nn.Module):
-    def __init__(self, hidden_size, attn_size):
+    def __init__(self, hidden_size):
         super().__init__()
 
-        self.w = nn.Parameter(torch.zeros(hidden_size, attn_size), requires_grad=True)
-        self.u = nn.Parameter(torch.zeros(attn_size), requires_grad=True)
-        [p.data.normal_(-1e-4, 1e-4) for p in (self.w, self.u)]
-
-    @staticmethod
-    def avg_max_pool(tensor):
-        """
-        一般tensor为三维矩阵，pool的层级一般是seq_len层级
-        :param tensor:
-        :return:
-        """
-        avg_p = torch.avg_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
-        max_p = torch.max_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
-        return torch.cat([avg_p, max_p], dim=1)
+        self.w = nn.Parameter(torch.zeros(hidden_size), requires_grad=True)
+        self.w.data.normal_(-1e-4, 1e-4)
 
     def forward(self, h):
-        squeeze_h = torch.matmul(h, self.w)
-        m = torch.tanh(squeeze_h)
-        alpha = torch.softmax(torch.matmul(m, self.u), dim=1).unsqueeze(-1)
+        m = torch.tanh(h)
+        alpha = torch.softmax(torch.matmul(m, self.w), dim=1).unsqueeze(-1)
         out = h * alpha
-        return self.avg_max_pool(out)
+        return torch.max_pool1d(out.transpose(1, 2), out.size(1)).squeeze(-1)
 
 
 class Model(nn.Module):
@@ -122,8 +99,8 @@ class Model(nn.Module):
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
             unit = nn.Sequential(
-                AttnPool(config.encode_hidden * 2, config.attn_size),  # bach_size, encode_hidden * 4
-                nn.Linear(config.encode_hidden * 4, config.linear_size),
+                AttnPool(config.encode_hidden * 2),  # bach_size, encode_hidden * 2
+                nn.Linear(config.encode_hidden * 2, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
                 nn.Dropout(config.dropout),
