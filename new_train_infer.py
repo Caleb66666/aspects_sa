@@ -32,7 +32,7 @@ def batches_eval(model, config, optimizer, scheduler, valid_batches, outputs, as
         train_f1, train_loss = outputs['f1'], outputs['loss']
         valid_f1, valid_loss = evaluate(model, valid_batches)
         if valid_loss < assist_params["best_loss"]:
-            assist_params.update({"best_loss": valid_loss, "last_improve": assist_params['batches']})
+            assist_params.update({"best_loss": valid_loss, "last_improve": assist_params['cur_batches']})
             loss_improved = "*"
             config.save_model(model, optimizer, scheduler, assist_params['cur_epoch'], assist_params['best_loss'])
         else:
