@@ -36,7 +36,7 @@ class Config(BaseConfig):
 
         self.epochs = 10
         self.max_seq = 1024
-        self.batch_size = 32
+        self.batch_size = 16
         self.xlnet_hidden = 768
         self.attn_size = 128
         self.linear_size = 128
