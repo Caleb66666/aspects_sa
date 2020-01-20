@@ -36,7 +36,7 @@ class Config(BaseConfig):
 
         self.epochs = 10
         self.max_seq = 1024
-        self.batch_size = 16
+        self.batch_size = 4
         self.xlnet_hidden = 768
         self.attn_size = 128
         self.linear_size = 128
@@ -117,7 +117,7 @@ class Model(nn.Module):
         for _ in range(self.num_labels):
             unit = nn.Sequential(
                 AttnPool(config.xlnet_hidden, config.attn_size),
-                nn.Linear(config.xlnet_hidden, config.linear_size),
+                nn.Linear(config.xlnet_hidden * 2, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
                 nn.Dropout(config.dropout),
