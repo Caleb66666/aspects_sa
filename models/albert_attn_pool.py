@@ -6,7 +6,7 @@
 import os
 import torch
 import math
-from models.new_base_config import BaseConfig
+from models.base_config import BaseConfig
 from torch import nn
 from utils.path_util import abspath
 from utils.ml_util import calc_f1
