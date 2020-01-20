@@ -43,10 +43,10 @@ def batches_eval(model, config, optimizer, scheduler, valid_batches, outputs, as
             f"{train_loss:>5.5f}, Train F1: {train_f1 * 100:6.2f}%, Valid Loss: {valid_loss:>5.5f}, Valid F1: "
             f"{valid_f1 * 100:6.2f}%, Current LR: {cur_lr:.9f} {loss_improved}")
         writer = assist_params.get("writer")
-        writer.add_scalar("train/loss", train_loss, assist_params["batches"])
-        writer.add_scalar("train/f1", train_f1, assist_params["batches"])
-        writer.add_scalar("valid/loss", valid_loss, assist_params["batches"])
-        writer.add_scalar("valid/f1", valid_f1, assist_params["batches"])
+        writer.add_scalar("train/loss", train_loss, assist_params["cur_batches"])
+        writer.add_scalar("train/f1", train_f1, assist_params["cur_batches"])
+        writer.add_scalar("valid/loss", valid_loss, assist_params["cur_batches"])
+        writer.add_scalar("valid/f1", valid_f1, assist_params["cur_batches"])
 
     if (assist_params['cur_batches'] + 1) % config.schedule_per_batches == 0:
         scheduler.step()
