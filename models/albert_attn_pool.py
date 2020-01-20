@@ -47,8 +47,8 @@ class Config(BaseConfig):
         self.dropout = 0.5
         self.embed_dim = 128
         self.encode_hidden = 512
-        self.attn_size = 256
-        self.linear_size = 256
+        self.attn_size = 128
+        self.linear_size = 128
 
         self.lr = 5e-5
         self.weight_decay = 1e-2

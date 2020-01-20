@@ -22,7 +22,7 @@ class Config(BaseConfig):
 
         self.train_file = abspath("data/train.csv")
         self.valid_file = abspath("data/valid.csv")
-        self.loader_cls = XLNetModel
+        self.loader_cls = XlnetLoader
         self.dl_path = abspath(f"data/{self.name}.pt")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -45,6 +45,7 @@ class Config(BaseConfig):
         self.lr = 5e-5
         self.weight_decay = 1e-2
         self.warm_up_steps = 50
+        self.warm_up_proportion = 0.1
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
