@@ -36,7 +36,7 @@ class Config(BaseConfig):
 
         self.epochs = 10
         self.max_seq = 1024
-        self.batch_size = 4
+        self.batch_size = 16
         self.xlnet_hidden = 768
         self.attn_size = 128
         self.linear_size = 128
@@ -102,6 +102,20 @@ class AttnPool(nn.Module):
         return self.avg_max_pool(out)
 
 
+class NewAttnPool(nn.Module):
+    def __init__(self, hidden_size):
+        super().__init__()
+
+        self.w = nn.Parameter(torch.zeros(hidden_size), requires_grad=True)
+        self.w.data.normal_(-1e-4, 1e-4)
+
+    def forward(self, h):
+        m = torch.tanh(h)
+        alpha = torch.softmax(torch.matmul(m, self.w), dim=1).unsqueeze(-1)
+        out = h * alpha
+        return torch.max_pool1d(out.transpose(1, 2), out.size(1)).squeeze(-1)
+
+
 class Model(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -116,8 +130,8 @@ class Model(nn.Module):
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
             unit = nn.Sequential(
-                AttnPool(config.xlnet_hidden, config.attn_size),
-                nn.Linear(config.xlnet_hidden * 2, config.linear_size),
+                NewAttnPool(config.xlnet_hidden),
+                nn.Linear(config.xlnet_hidden, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
                 nn.Dropout(config.dropout),

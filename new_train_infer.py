@@ -28,7 +28,7 @@ def evaluate(model, valid_batches):
 
 
 def batches_eval(model, config, optimizer, scheduler, valid_batches, outputs, assist_params):
-    if (assist_params['batches'] + 1) % config.eval_per_batches == 0:
+    if (assist_params['cur_batches'] + 1) % config.eval_per_batches == 0:
         train_f1, train_loss = outputs['f1'], outputs['loss']
         valid_f1, valid_loss = evaluate(model, valid_batches)
         if valid_loss < assist_params["best_loss"]:
@@ -48,11 +48,11 @@ def batches_eval(model, config, optimizer, scheduler, valid_batches, outputs, as
         writer.add_scalar("valid/loss", valid_loss, assist_params["batches"])
         writer.add_scalar("valid/f1", valid_f1, assist_params["batches"])
 
-    if (assist_params['batches'] + 1) % config.schedule_per_batches == 0:
+    if (assist_params['cur_batches'] + 1) % config.schedule_per_batches == 0:
         scheduler.step()
 
     # 判断是否许久未改善valid_loss
-    if assist_params["batches"] - assist_params["last_improve"] > config.improve_require:
+    if assist_params["cur_batches"] - assist_params["last_improve"] > config.improve_require:
         assist_params["stop_flag"] = True
         ts_print(f"train is stopped without improvement in {config.improve_require} batches, best valid loss:"
                  f"{assist_params['best_loss']:>5.4}, best batch: {assist_params['last_improve']:>5}")
