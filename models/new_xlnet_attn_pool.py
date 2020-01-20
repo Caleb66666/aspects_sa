@@ -111,7 +111,7 @@ class Model(nn.Module):
         self.num_labels = config.num_labels
 
         self.xlnet = XLNetModel.from_pretrained(config.xlnet_path)
-        [setattr(param, "requires_grad", True) for param in self.xlnet]
+        [setattr(param, "requires_grad", True) for param in self.xlnet.parameters()]
 
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
