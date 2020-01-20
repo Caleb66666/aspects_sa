@@ -119,6 +119,11 @@ class NewAttnPool(nn.Module):
 
 class Model(nn.Module):
     def __init__(self, config):
+        """
+        xlnet理论上可编码任意长度的文本，且其在序列表征上的能力非常强大，但是设置seq_len高达1024时，其模型极其庞大，最多只能设置batch
+        size为4，而且每个batch的时长高达2个小时
+        :param config:
+        """
         super().__init__()
 
         self.classes = config.classes
