@@ -120,6 +120,7 @@ def train():
         if assist_params["stop_flag"]:
             break
     assist_params["writer"].close()
+    assist_params["logger"].close()
 
 
 if __name__ == '__main__':
