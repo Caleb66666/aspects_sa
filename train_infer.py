@@ -85,7 +85,7 @@ def train():
 
     # 是否加载旧模型
     if args.restore:
-        model, optimizer, scheduler, epoch, best_loss = config.restore_model(model, optimizer)
+        model, optimizer, scheduler, epoch, best_loss = config.restore_model(model, optimizer, scheduler)
         assist_params.update({"cur_epoch": epoch, "best_loss": best_loss, "cur_batches": dl.train_batches * epoch})
         ts_print(f"restore model, stopped epoch: {epoch}, best loss: {best_loss:>5.4}")
 
