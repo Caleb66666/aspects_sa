@@ -87,10 +87,5 @@ class BaseConfig(object):
                     if torch.is_tensor(v):
                         state[k] = v.cuda()
         scheduler.load_state_dict(save_dict.get("scheduler"))
-        # if torch.cuda.is_available():
-        #     for state in scheduler.state.values():
-        #         for k, v in state.items():
-        #             if torch.is_tensor(v):
-        #                 state[k] = v.cuda()
         model.load_state_dict(save_dict.get("model"))
         return model, optimizer, scheduler, save_dict["epoch"], save_dict["best_loss"]

@@ -54,6 +54,11 @@ def adjust_lr(optimizer, scale, init_lr, lr_decay, min_lr=1e-4):
     return cur_lr
 
 
+def scale_lr(optimizer, scale=1):
+    for param_group in optimizer.param_groups:
+        param_group["lr"] *= scale
+
+
 def unwrap_to_tensors(*tensors):
     return (x.detach().cpu() if isinstance(x, torch.Tensor) else x for x in tensors)
 

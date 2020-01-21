@@ -28,7 +28,7 @@ class Config(BaseConfig):
         self.eval_per_batches = 200
         self.schedule_per_batches = 200
 
-        self.epochs = 30
+        self.epochs = 40
         self.max_seq = 1024
         self.batch_size = 64
         self.embed_dim = 128
