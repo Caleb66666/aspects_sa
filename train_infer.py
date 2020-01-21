@@ -78,7 +78,7 @@ def train():
         "writer": SummaryWriter(config.summary_dir),
         "stop_flag": False,  # 训练停止
         "cur_epoch": 0,
-        "logger": LoggerClass(config.logger_name, config.logger_file.formate(cur_time_stamp()))
+        "logger": LoggerClass(config.logger_name, config.logger_file.format(cur_time_stamp()))
     }
 
     assist_params['logger'].info(
