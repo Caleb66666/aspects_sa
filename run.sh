@@ -9,6 +9,7 @@ nohup python -u train_infer.py \
             --pattern train \
             --model "$model_name" \
             --seed 279 \
+			--restore \
             >"$file" 2>&1 &
 
 tail -f "$file"
