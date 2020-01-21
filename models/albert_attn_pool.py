@@ -24,18 +24,18 @@ class Config(BaseConfig):
         self.num_classes = None
         self.num_labels = None
         self.classes = None
-        self.improve_require = 50000
+        self.improve_require = 40000
         self.eval_per_batches = 200
         self.schedule_per_batches = 200
 
-        self.epochs = 40
+        self.epochs = 30
         self.max_seq = 1024
         self.batch_size = 64
         self.embed_dim = 128
         self.encode_hidden = 256
         self.linear_size = 128
 
-        self.lr = 5e-5
+        self.lr = 6e-5
         self.dropout = 0.5
         self.weight_decay = 1e-2
         self.warm_up_proportion = 0.1
@@ -89,7 +89,8 @@ class AttnPool(nn.Module):
         m = torch.tanh(h)
         alpha = torch.softmax(torch.matmul(m, self.w), dim=1).unsqueeze(-1)
         out = h * alpha
-        return torch.max_pool1d(out.transpose(1, 2), out.size(1)).squeeze(-1)
+        # return torch.max_pool1d(out.transpose(1, 2), out.size(1)).squeeze(-1)
+        return self.avg_max_pool(out)
 
 
 class Model(nn.Module):
@@ -123,7 +124,7 @@ class Model(nn.Module):
         for _ in range(self.num_labels):
             unit = nn.Sequential(
                 AttnPool(config.encode_hidden * 2),  # bach_size, encode_hidden * 2
-                nn.Linear(config.encode_hidden * 2, config.linear_size),
+                nn.Linear(config.encode_hidden * 4, config.linear_size),
                 nn.BatchNorm1d(config.linear_size),
                 nn.ELU(inplace=True),
                 nn.Dropout(config.dropout),
