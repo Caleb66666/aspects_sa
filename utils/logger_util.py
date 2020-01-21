@@ -7,7 +7,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 
 class LoggerClass(object):
-    def __index__(self, logger_name, logger_file):
+    def __init__(self, logger_name, logger_file):
         self.logger = self.init_logger(logger_name, logger_file)
 
     @staticmethod

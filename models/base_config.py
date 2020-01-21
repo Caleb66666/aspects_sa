@@ -30,13 +30,20 @@ class BaseConfig(object):
         self.model_dir = abspath(f"checkpoints/{self.name}")
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
-        self.model_ckpt = os.path.join(self.model_dir, "{}.%s.ckpt" % self.name)
+        self.model_ckpt = os.path.join(self.model_dir, "{}.ckpt")
         self.max_backup = 3  # 最多的模型保存
 
-        # 日志记录设置
+        # 训练损失记录设置
         self.summary_dir = abspath(f"summary/{self.name}")
         if not os.path.exists(self.summary_dir):
             os.makedirs(self.summary_dir)
+
+        # 日志记录
+        self.logger_name = self.name
+        self.logger_dir = abspath(f"log/{self.name}")
+        if not os.path.exists(self.logger_dir):
+            os.makedirs(self.logger_dir)
+        self.logger_file = os.path.join(self.logger_dir, "{}.log")
 
         # 设置debug模式
         self.debug = debug
@@ -56,7 +63,7 @@ class BaseConfig(object):
             torch.cuda.manual_seed_all(self.seed)
         # torch.backends.cudnn.deterministic = true
 
-    def save_model(self, model, optimizer, scheduler, epoch, best_loss):
+    def save_model(self, model, optimizer, scheduler, epoch, best_loss, last_improve):
         """
         存储模型，包括模型结构、优化器参数、调度器参数、当前epoch步数
         :param model:
@@ -64,6 +71,7 @@ class BaseConfig(object):
         :param scheduler:
         :param epoch:
         :param best_loss:
+        :param last_improve:
         :return:
         """
         save_dict = {
@@ -71,7 +79,8 @@ class BaseConfig(object):
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
             "model": model.state_dict(),
-            "best_loss": best_loss
+            "best_loss": best_loss,
+            "last_improve": last_improve
         }
         torch.save(save_dict, self.model_ckpt.format(cur_time_stamp()))
         keep_max_backup(self.model_dir, self.max_backup)
@@ -88,4 +97,4 @@ class BaseConfig(object):
                         state[k] = v.cuda()
         scheduler.load_state_dict(save_dict.get("scheduler"))
         model.load_state_dict(save_dict.get("model"))
-        return model, optimizer, scheduler, save_dict["epoch"], save_dict["best_loss"]
+        return model, optimizer, scheduler, save_dict["epoch"], save_dict["best_loss"], save_dict["last_improve"]
