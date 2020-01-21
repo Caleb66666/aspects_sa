@@ -35,7 +35,8 @@ def batches_eval(model, config, optimizer, scheduler, valid_batches, outputs, as
         if valid_loss < assist_params["best_loss"]:
             assist_params.update({"best_loss": valid_loss, "last_improve": assist_params['cur_batches']})
             loss_improved = "*"
-            config.save_model(model, optimizer, scheduler, assist_params['cur_epoch'], assist_params['best_loss'])
+            config.save_model(model, optimizer, scheduler, assist_params['cur_epoch'], assist_params['best_loss'],
+                              assist_params['last_improve'])
         else:
             loss_improved = ""
         cur_lr = optimizer.state_dict()["param_groups"][0]["lr"]
