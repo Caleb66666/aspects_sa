@@ -74,6 +74,17 @@ class AttnPool(nn.Module):
         self.w = nn.Parameter(torch.zeros(hidden_size), requires_grad=True)
         self.w.data.normal_(-1e-4, 1e-4)
 
+    @staticmethod
+    def avg_max_pool(tensor):
+        """
+        一般tensor为三维矩阵，pool的层级一般是seq_len层级
+        :param tensor:
+        :return:
+        """
+        avg_p = torch.avg_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        max_p = torch.max_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        return torch.cat([avg_p, max_p], dim=1)
+
     def forward(self, h):
         m = torch.tanh(h)
         alpha = torch.softmax(torch.matmul(m, self.w), dim=1).unsqueeze(-1)
@@ -87,6 +98,12 @@ class Model(nn.Module):
         选择albert是因为其词表征输出维度较小，而且本身该模型为蒸馏模型，训练步骤及其长，结合其基于sub word的分词方法。不仅可以比较完美的
         解决oov问题，而且还拥有维度小，表征能力强的词嵌入，结果证明，后续接入一个比较简单的双向LSTM作为序列表征，分类器使用attention+max
         pool就能获得一个较好的基线结果。
+        TODO: 直观上来说，改进encoder能获得跟更大的提升
+        1. pool层改进：引入avg pool和max pool
+        2. attention层改进：attention添加新的w，用于调整输入项
+        3. encoder部分：使用简化版elmo模型，并逐级增加encoder层级
+        4. encoder部分：使用可并行rnn结构单元sru代替
+        5. embedding部分：目前使用的是base版，可以试用large版
         :param config:
         """
         super().__init__()
