@@ -91,7 +91,7 @@ def train():
     if args.restore:
         model, optimizer, scheduler, epoch, best_loss, last_improve = config.restore_model(model, optimizer, scheduler)
         # 有时候为了续接训练，需要适当的对原优化器lr进行调整
-        scale_lr(optimizer, scale=5)
+        # scale_lr(optimizer, scale=1)
         assist_params.update({"cur_epoch": epoch,
                               "best_loss": best_loss,
                               "cur_batches": len(dl.train_batches) * epoch,
@@ -121,7 +121,6 @@ def train():
         if assist_params["stop_flag"]:
             break
     assist_params["writer"].close()
-    assist_params["logger"].close()
 
 
 if __name__ == '__main__':
