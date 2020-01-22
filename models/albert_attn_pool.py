@@ -105,6 +105,7 @@ class Model(nn.Module):
         3. encoder部分：使用简化版elmo模型，并逐级增加encoder层级
         4. encoder部分：使用可并行rnn结构单元sru代替
         5. embedding部分：目前使用的是base版，可以试用large版
+        6. encoder部分：加入局部特征conv
         :param config:
         """
         super().__init__()
@@ -118,7 +119,8 @@ class Model(nn.Module):
         self.embedding = albert.embeddings.word_embeddings
         [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
 
-        self.encoder = nn.LSTM(config.embed_dim, config.encode_hidden, batch_first=True, bidirectional=True)
+        self.encoder = nn.LSTM(config.embed_dim, config.encode_hidden, batch_first=True, bidirectional=True,
+                               num_layers=2)
 
         self.units, self.criterion_list = nn.ModuleList(), list()
         for _ in range(self.num_labels):
