@@ -19,7 +19,7 @@ class LoggerClass(object):
         str_fmt = "[%(asctime)s] [%(levelname)s]: %(message)s"
         formatter = logging.Formatter(str_fmt, data_fmt)
 
-        handler = TimedRotatingFileHandler(filename=logger_file, when="H", backupCount=5)
+        handler = TimedRotatingFileHandler(filename=logger_file, when="D", backupCount=5)
         handler.setFormatter(formatter)
         handler.setLevel(level)
 
