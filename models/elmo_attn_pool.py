@@ -12,7 +12,7 @@ from allennlp.modules.scalar_mix import ScalarMix
 from models.base_config import BaseConfig
 from utils.path_util import abspath
 from utils.ml_util import calc_f1
-from data_loader import XlnetLoader as AlbertLoader
+from data_loader import XlnetLoader as ElmoLoader
 from transformers import AdamW, get_linear_schedule_with_warmup
 from chinese_albert import AlbertTokenizer, AlbertModel
 
@@ -21,7 +21,7 @@ class Config(BaseConfig):
     def __init__(self, seed, debug=False):
         self.train_file = abspath("data/train.csv")
         self.valid_file = abspath("data/valid.csv")
-        self.loader_cls = AlbertLoader
+        self.loader_cls = ElmoLoader
 
         self.num_classes = None
         self.num_labels = None
