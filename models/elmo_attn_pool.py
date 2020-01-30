@@ -172,7 +172,7 @@ class Model(nn.Module):
         # train流程
         assert len(labels) == self.num_labels, "number labels error!"
         embed_seq = self.embedding(seq_ids)  # batch_size, seq_len, embed_dim
-        encoded_seq, _ = self.encoder(embed_seq, seq_mask)  # batch_size, seq_len, embed_dim * 2
+        encoded_seq = self.encoder(embed_seq, seq_mask)  # batch_size, seq_len, embed_dim * 2
         total_logits, total_loss, total_f1 = list(), 0.0, 0.0
         for unit, criterion, label in zip(self.units, self.criterion_list, labels):
             logits = unit(encoded_seq)
