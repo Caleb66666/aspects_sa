@@ -1,6 +1,8 @@
 from torch import nn
 import torch
 from sklearn import metrics
+import math
+import random
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -73,3 +75,11 @@ def calc_f1(logits, label, classes, average="micro", dim=-1):
     pred_y = logits.argmax(dim=dim, keepdim=True).squeeze(dim=dim)
     true_y, pred_y, classes = unwrap_to_tensors(label, pred_y, classes)
     return metrics.f1_score(true_y, pred_y, labels=classes, average=average)
+
+
+def gen_random_mask(batch_size, max_seq):
+    seq_mask = torch.zeros(size=(batch_size, max_seq))
+    for idx in range(batch_size):
+        random_one = random.randint(math.ceil(max_seq / 2), max_seq)
+        seq_mask[idx, 0:random_one] = 1
+    return seq_mask.int()
