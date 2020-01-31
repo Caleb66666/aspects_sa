@@ -50,6 +50,9 @@ class BaseConfig(object):
         if self.debug:
             self.epochs = 1
             self.batch_size = 2
+            self.dl_path = abspath(f"data/{self.name}.debug.pt")
+            self.logger_file = os.path.join(self.logger_dir, "{}.debug.log")
+            self.model_ckpt = os.path.join(self.model_dir, "{}.debug.ckpt")
 
     # 初始化优化器、调度器
     def build_optimizer_scheduler(self, model, train_batches_len):

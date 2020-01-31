@@ -127,9 +127,6 @@ class BaseLoader(object):
 class XlnetLoader(BaseLoader):
     def __init__(self, config):
         super().__init__()
-        # train_df = pd.read_csv(config.train_file, header=0, sep=",")
-        # self.stat_seq(train_df, config.max_seq, "content")
-
         if not os.path.exists(config.dl_path):
             train_df, valid_df, fields, label_field, columns = self.init_raw(config)
         else:
@@ -176,12 +173,20 @@ class XlnetLoader(BaseLoader):
         float_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.float)
         label_field = LabelField(sequential=False, use_vocab=True, batch_first=True)
 
-        train_df = pd.read_csv(config.train_file, header=0, sep=",")
-        valid_df = pd.read_csv(config.valid_file, header=0, sep=",")
-        for df in (train_df, valid_df):
-            df["seq_ids"], df["seq_len"], df["seq_mask"], df["inf_mask"] = zip(
-                *df["content"].parallel_apply(lambda content: self.text_process(content, config)))
-            df.drop(columns=["id", "content"], inplace=True)
+        if not config.debug:
+            train_df = pd.read_csv(config.train_file, header=0, sep=",")
+            valid_df = pd.read_csv(config.valid_file, header=0, sep=",")
+            for df in (train_df, valid_df):
+                df["seq_ids"], df["seq_len"], df["seq_mask"], df["inf_mask"] = zip(
+                    *df["content"].parallel_apply(lambda content: self.text_process(content, config)))
+                df.drop(columns=["id", "content"], inplace=True)
+        else:
+            train_df = pd.read_csv(config.train_file, header=0, sep=",", nrows=2)
+            valid_df = pd.read_csv(config.valid_file, header=0, sep=",", nrows=2)
+            for df in (train_df, valid_df):
+                df["seq_ids"], df["seq_len"], df["seq_mask"], df["inf_mask"] = zip(
+                    *df["content"].apply(lambda content: self.text_process(content, config)))
+                df.drop(columns=["id", "content"], inplace=True)
 
         fields, columns = list(), train_df.columns.tolist()
         for column in columns:

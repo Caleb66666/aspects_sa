@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch
 
 
-def test():
+def infer():
     pass
 
 
@@ -65,13 +65,13 @@ def train():
     model_module = import_module(f"models.{args.model.lower()}")
 
     # config总管所有参数、dl总管原始数据的处理以及分成batches等、model代表建立的模型，optimizer优化器、scheduler学习率调度器
-    config = model_module.Config(args.seed)
+    config = model_module.Config(args.seed, args.debug)
     dl = config.loader_cls(config)
     model = model_module.Model(config)
     optimizer, scheduler = config.build_optimizer_scheduler(model, len(dl.train_batches))
 
     # 辅助训练参数
-    assist_params = {
+    assist_params = dict({
         "cur_batches": 0,  # 全局batch数
         "total_batches": config.epochs * len(dl.train_batches),
         "best_loss": float("inf"),  # 最佳valid loss记录
@@ -80,7 +80,7 @@ def train():
         "stop_flag": False,  # 训练停止
         "cur_epoch": 0,
         "logger": LoggerClass(config.logger_name, config.logger_file.format(cur_time_stamp()))
-    }
+    })
 
     assist_params['logger'].info(
         f"model: {args.model}, model params: {count_params(model)}, train samples: {dl.train_batches.count}, "
@@ -112,8 +112,6 @@ def train():
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
             model.zero_grad()
-            if config.debug:
-                break
             batches_eval(model, config, optimizer, scheduler, dl.valid_batches, outputs, assist_params)
             assist_params['cur_batches'] += 1
             if assist_params["stop_flag"]:
@@ -138,4 +136,4 @@ if __name__ == '__main__':
     if args.pattern == "train":
         train()
     else:
-        test()
+        infer()

@@ -43,6 +43,8 @@ class Config(BaseConfig):
         self.max_grad_norm = 5
 
         self.albert_path = "/data/wangqian/berts/albert-base-chinese"
+        if debug:
+            self.albert_path = "/Users/Vander/Code/pytorch_col/albert-base-chinese"
         self.tokenizer = AlbertTokenizer.from_pretrained(self.albert_path)
         self.cls = self.tokenizer.cls_token
         self.sep = self.tokenizer.sep_token
