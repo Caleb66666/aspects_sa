@@ -101,7 +101,11 @@ class SimpleElmo(nn.Module):
     def __init__(self, input_size, cell_size, num_layers, do_layer_norm=True, scalar_mix_parameters=None):
         super().__init__()
 
-        self.elmo_lstm = ElmoLstm(input_size, input_size, cell_size, num_layers)
+        # 在做scalar mix的时候，会将词向量也并入每层layer输出的总体tensors,为保证一致性，设置hidden size等于input size
+        # 也可以在最后做混淆的时候舍弃掉`torch.cat([embed_seq, embed_seq])`，这时hidden_size可自由设置，且ScalarMix
+        # 的mixture_size也不需要加1了
+        hidden_size = input_size
+        self.elmo_lstm = ElmoLstm(input_size, hidden_size, cell_size, num_layers)
         self.scalar_mix = ScalarMix(
             mixture_size=num_layers + 1,
             do_layer_norm=do_layer_norm,
