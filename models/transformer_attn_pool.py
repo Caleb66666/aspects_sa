@@ -130,7 +130,7 @@ class Model(nn.Module):
         self.embedding = albert.embeddings.word_embeddings
         [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
 
-        # 简化版的elmo模型作为特征抽取
+        # bi-transformer模型作为特征抽取
         self.encoder = TransformerEncoder(config.embed_dim, config.hidden_size, config.num_layers, config.dropout)
 
         self.units, self.criterion_list = nn.ModuleList(), list()
