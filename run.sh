@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-model=elmo_attn_pool
+model=transformer_attn_pool
 out=nohup.out
 if [[ ! -f "$out" ]]; then
     touch "$out"
