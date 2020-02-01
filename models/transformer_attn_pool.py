@@ -20,10 +20,12 @@ from chinese_albert import AlbertTokenizer, AlbertModel
 
 class Config(BaseConfig):
     def __init__(self, seed, debug=False):
+        # 原始参数、参数初始化等相关
         self.train_file = abspath("data/train.csv")
         self.valid_file = abspath("data/valid.csv")
         self.loader_cls = TransformerLoader
 
+        # 辅助训练相关
         self.num_classes = None
         self.num_labels = None
         self.classes = None
@@ -31,6 +33,7 @@ class Config(BaseConfig):
         self.eval_per_batches = 200
         self.schedule_per_batches = 200
 
+        # 模型结构相关
         self.epochs = 30
         self.max_seq = 1024
         self.batch_size = 64
@@ -39,6 +42,7 @@ class Config(BaseConfig):
         self.linear_size = 128
         self.num_layers = 3
 
+        # 学习率调整、损失调整等相关
         self.lr = 6e-5
         self.dropout = 0.5
         self.weight_decay = 1e-2
@@ -46,9 +50,11 @@ class Config(BaseConfig):
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
-        self.albert_path = "/data/wangqian/berts/albert-base-chinese"
+        # 分词器/词片器参数相关
         if debug:
             self.albert_path = "/Users/Vander/Code/pytorch_col/albert-base-chinese"
+        else:
+            self.albert_path = "/data/wangqian/berts/albert-base-chinese"
         self.tokenizer = AlbertTokenizer.from_pretrained(self.albert_path)
         self.cls = self.tokenizer.cls_token
         self.sep = self.tokenizer.sep_token
@@ -96,7 +102,6 @@ class AttnPool(nn.Module):
         alpha = torch.softmax(torch.matmul(m, self.w), dim=1).unsqueeze(-1)
         out = h * alpha
         return torch.max_pool1d(out.transpose(1, 2), out.size(1)).squeeze(-1)
-        # return self.avg_max_pool(out)
 
 
 class Model(nn.Module):
@@ -144,7 +149,7 @@ class Model(nn.Module):
         # 解析输入项
         labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
 
-        # test流程
+        # infer流程
         if not labels:
             embed_seq = self.embedding(seq_ids)
             encoded_seq, _ = self.encoder(embed_seq)
@@ -152,8 +157,8 @@ class Model(nn.Module):
 
         # train流程
         assert len(labels) == self.num_labels, "number labels error!"
-        embed_seq = self.embedding(seq_ids)  # batch_size, seq_len, embed_dim
-        encoded_seq = self.encoder(embed_seq, seq_mask)  # batch_size, seq_len, embed_dim * 2
+        embed_seq = self.embedding(seq_ids)
+        encoded_seq = self.encoder(embed_seq, seq_mask)
         total_logits, total_loss, total_f1 = list(), 0.0, 0.0
         for unit, criterion, label in zip(self.units, self.criterion_list, labels):
             logits = unit(encoded_seq)

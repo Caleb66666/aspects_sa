@@ -17,10 +17,12 @@ from chinese_albert import AlbertTokenizer, AlbertModel
 
 class Config(BaseConfig):
     def __init__(self, seed, debug=False):
+        # 原始参数、参数初始化等相关
         self.train_file = abspath("data/train.csv")
         self.valid_file = abspath("data/valid.csv")
         self.loader_cls = AlbertLoader
 
+        # 辅助训练相关
         self.num_classes = None
         self.num_labels = None
         self.classes = None
@@ -28,6 +30,7 @@ class Config(BaseConfig):
         self.eval_per_batches = 200
         self.schedule_per_batches = 200
 
+        # 模型结构相关
         self.epochs = 30
         self.max_seq = 1024
         self.batch_size = 64
@@ -35,6 +38,7 @@ class Config(BaseConfig):
         self.encode_hidden = 256
         self.linear_size = 128
 
+        # 学习率调整、损失调整等相关
         self.lr = 6e-5
         self.dropout = 0.5
         self.weight_decay = 1e-2
@@ -42,9 +46,11 @@ class Config(BaseConfig):
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
 
-        self.albert_path = "/data/wangqian/berts/albert-base-chinese"
+        # 分词器/词片器参数相关
         if debug:
             self.albert_path = "/Users/Vander/Code/pytorch_col/albert-base-chinese"
+        else:
+            self.albert_path = "/data/wangqian/berts/albert-base-chinese"
         self.tokenizer = AlbertTokenizer.from_pretrained(self.albert_path)
         self.cls = self.tokenizer.cls_token
         self.sep = self.tokenizer.sep_token
