@@ -108,6 +108,7 @@ class Model(nn.Module):
         self.classes = config.classes
         self.num_classes = config.num_classes
         self.num_labels = config.num_labels
+        self.device = config.device
 
         self.embedding = TransferEmbedding(AlbertModel, config.albert_path)
         self.encoder = DynamicLSTM(config.embed_dim, config.hidden_dim, config.num_layers, batch_first=True,
@@ -138,7 +139,7 @@ class Model(nn.Module):
 
         total_logits, total_loss, total_f1 = list(), list(), list()
         for idx, (unit, label) in enumerate(zip(self.units, labels)):
-            label_embed = self.label_embedding(torch.tensor(idx).long())
+            label_embed = self.label_embedding(torch.tensor(idx).long().to(self.device))
             label_embed = label_embed.unsqueeze(dim=0).expand(bs, -1).unsqueeze(1).expand(-1, seq_max.item(), -1)
             logits, criterion, f1 = unit(
                 encoded_seq,
