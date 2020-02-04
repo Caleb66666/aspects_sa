@@ -10,6 +10,7 @@ import numpy as np
 import random
 from utils.path_util import abspath, keep_max_backup, newest_file
 from utils.time_util import cur_time_stamp
+from utils.ml_util import scale_lr
 from transformers import AdamW, get_linear_schedule_with_warmup
 
 
@@ -47,6 +48,10 @@ class BaseConfig(object):
         if not os.path.exists(self.logger_dir):
             os.makedirs(self.logger_dir)
         self.logger_file = os.path.join(self.logger_dir, "{}.log")
+
+        # restore模式
+        self.restore = False
+        self.default_scale = 20
 
         # 设置debug模式
         self.debug = debug
@@ -119,3 +124,10 @@ class BaseConfig(object):
         scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warm_up_steps,
                                                     num_training_steps=schedule_steps)
         return optimizer, scheduler
+
+    def set_restore_lr(self, optimizer, scale=None):
+        if self.restore:
+            return
+        self.restore = True
+        scale = scale or self.default_scale
+        scale_lr(optimizer, scale)

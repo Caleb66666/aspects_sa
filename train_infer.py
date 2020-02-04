@@ -6,7 +6,7 @@
 import argparse
 from setproctitle import setproctitle
 from utils.time_util import timer, cur_time_stamp
-from utils.ml_util import count_params, scale_lr
+from utils.ml_util import count_params
 from utils.logger_util import LoggerClass
 from importlib import import_module
 from torch.utils.tensorboard import SummaryWriter
@@ -91,7 +91,7 @@ def train():
     if args.restore:
         model, optimizer, scheduler, epoch, best_loss, last_improve = config.restore_model(model, optimizer, scheduler)
         # 有时候为了续接训练，需要适当的对原优化器lr进行调整
-        # scale_lr(optimizer, scale=1)
+        config.set_restore_lr(optimizer)
         assist_params.update({"cur_epoch": epoch,
                               "best_loss": best_loss,
                               "cur_batches": len(dl.train_batches) * epoch,
