@@ -77,9 +77,12 @@ def calc_f1(logits, label, classes, average="micro", dim=-1):
     return metrics.f1_score(true_y, pred_y, labels=classes, average=average)
 
 
-def gen_random_mask(batch_size, max_seq):
+def gen_random_mask(batch_size, max_seq, seed=279):
+    random.seed(seed)
     seq_mask = torch.zeros(size=(batch_size, max_seq))
+    seq_len = list()
     for idx in range(batch_size):
-        random_one = random.randint(math.ceil(max_seq / 2), max_seq)
+        random_one = random.randint(math.ceil(max_seq / 3), max_seq)
+        seq_len.append(random_one)
         seq_mask[idx, 0:random_one] = 1
-    return seq_mask.int()
+    return seq_mask.int(), torch.tensor(seq_len)

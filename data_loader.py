@@ -138,7 +138,7 @@ class XlnetLoader(BaseLoader):
             (train_ds, valid_ds),
             batch_size=config.batch_size,
             device=config.device,
-            sort_within_batch=False,
+            sort_within_batch=config.sort_within_batch,
             sort=False,
             sort_key=lambda sample: getattr(sample, "seq_len"),
             repeat=False

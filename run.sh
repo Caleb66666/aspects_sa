@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-model=transformer_attn_pool
+model=atae_lstm
 out=nohup.out
 if [[ ! -f "$out" ]]; then
     touch "$out"
@@ -9,7 +9,7 @@ fi
 nohup python -u train_infer.py \
             --pattern train \
             --model "$model" \
-#            --debug \
+            --debug \
             --seed 279 \
             &
 tail -f "$out"

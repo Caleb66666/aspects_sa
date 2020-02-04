@@ -55,7 +55,7 @@ class Config(BaseConfig):
 
         super(Config, self).__init__(os.path.basename(__file__).split(".")[0], seed, debug)
 
-    def build_optimizer_scheduler(self, model, train_batches_len):
+    def build_optimizer_scheduler(self, model, train_batches_len, **kwargs):
         opt_params = list(model.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         grouped_params = [

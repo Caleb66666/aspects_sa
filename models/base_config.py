@@ -5,10 +5,12 @@
 
 import os
 import torch
+import math
 import numpy as np
 import random
 from utils.path_util import abspath, keep_max_backup, newest_file
 from utils.time_util import cur_time_stamp
+from transformers import AdamW, get_linear_schedule_with_warmup
 
 
 class BaseConfig(object):
@@ -25,6 +27,7 @@ class BaseConfig(object):
 
         # data-loader，处理完的数据序列化的位置，不需要再次初始化、预处理、分词、word-piece、sentence-piece等操作
         self.dl_path = abspath(f"data/{self.name}.pt")
+        self.sort_within_batch = True
 
         # 存储模型位置设置，使用时间戳进行模型的命名
         self.model_dir = abspath(f"checkpoints/{self.name}")
@@ -53,10 +56,6 @@ class BaseConfig(object):
             self.dl_path = abspath(f"data/{self.name}.debug.pt")
             self.logger_file = os.path.join(self.logger_dir, "{}.debug.log")
             self.model_ckpt = os.path.join(self.model_dir, "{}.debug.ckpt")
-
-    # 初始化优化器、调度器
-    def build_optimizer_scheduler(self, model, train_batches_len):
-        raise NotImplementedError
 
     def set_seed(self):
         random.seed(self.seed)
@@ -101,3 +100,22 @@ class BaseConfig(object):
         scheduler.load_state_dict(save_dict.get("scheduler"))
         model.load_state_dict(save_dict.get("model"))
         return model, optimizer, scheduler, save_dict["epoch"], save_dict["best_loss"], save_dict["last_improve"]
+
+    @staticmethod
+    def build_optimizer_scheduler(model, train_batches_len, weight_decay, lr, adam_epsilon, epochs,
+                                  schedule_per_batches, warm_up_proportion):
+        opt_params = list(model.named_parameters())
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        grouped_params = [
+            {'params': [p for n, p in opt_params if not any(nd in n for nd in no_decay)],
+             'weight_decay': weight_decay},
+            {'params': [p for n, p in opt_params if any(nd in n for nd in no_decay)],
+             'weight_decay': 0.0}
+        ]
+        optimizer = AdamW(grouped_params, lr=lr, eps=adam_epsilon)
+
+        schedule_steps = math.ceil(train_batches_len * epochs / schedule_per_batches)
+        warm_up_steps = math.ceil(schedule_steps * warm_up_proportion)
+        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warm_up_steps,
+                                                    num_training_steps=schedule_steps)
+        return optimizer, scheduler
