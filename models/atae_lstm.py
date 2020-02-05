@@ -13,7 +13,7 @@ from layers.attention import NoQueryAttention
 from models.base_config import BaseConfig
 from utils.path_util import abspath
 from data_loader import XlnetLoader as AtaeLoader
-from chinese_albert import AlbertModel, AlbertTokenizer
+from modules.albert import AlbertModel, AlbertTokenizer
 
 
 class Config(BaseConfig):

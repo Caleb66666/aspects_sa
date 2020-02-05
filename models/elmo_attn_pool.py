@@ -14,7 +14,7 @@ from utils.path_util import abspath
 from utils.ml_util import calc_f1
 from data_loader import XlnetLoader as ElmoLoader
 from transformers import AdamW, get_linear_schedule_with_warmup
-from chinese_albert import AlbertTokenizer, AlbertModel
+from modules.albert import AlbertTokenizer, AlbertModel
 
 
 class Config(BaseConfig):
