@@ -181,7 +181,7 @@ class XlnetLoader(BaseLoader):
                     *df["content"].parallel_apply(lambda content: self.text_process(content, config)))
                 df.drop(columns=["id", "content"], inplace=True)
         else:
-            train_df = pd.read_csv(config.train_file, header=0, sep=",", nrows=2)
+            train_df = pd.read_csv(config.train_file, header=0, sep=",", nrows=4)
             valid_df = pd.read_csv(config.valid_file, header=0, sep=",", nrows=2)
             for df in (train_df, valid_df):
                 df["seq_ids"], df["seq_len"], df["seq_mask"], df["inf_mask"] = zip(
@@ -196,7 +196,8 @@ class XlnetLoader(BaseLoader):
                 fields.append((column, float_field))
             else:
                 fields.append((column, label_field))
-        serialize(config.dl_path, [train_df, valid_df, fields, label_field, columns])
+        if not config.debug:
+            serialize(config.dl_path, [train_df, valid_df, fields, label_field, columns])
         return train_df, valid_df, fields, label_field, columns
 
 

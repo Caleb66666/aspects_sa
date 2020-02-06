@@ -9,12 +9,12 @@ import torch
 from torch import nn
 from allennlp.modules.elmo_lstm import ElmoLstm
 from allennlp.modules.scalar_mix import ScalarMix
-from models.base_config import BaseConfig
+from base_config import BaseConfig
 from utils.path_util import abspath
 from utils.ml_util import calc_f1
-from data_loader import XlnetLoader as ElmoLoader
+from base_loader import XlnetLoader as ElmoLoader
 from transformers import AdamW, get_linear_schedule_with_warmup
-from modules.albert import AlbertTokenizer, AlbertModel
+from self_modules.albert import AlbertTokenizer, AlbertModel
 
 
 class Config(BaseConfig):

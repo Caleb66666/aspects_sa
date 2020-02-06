@@ -6,13 +6,13 @@
 import os
 import torch
 import math
-from models.base_config import BaseConfig
+from base_config import BaseConfig
 from torch import nn
 from utils.path_util import abspath
 from utils.ml_util import calc_f1
-from data_loader import XlnetLoader as AlbertLoader
+from base_loader import XlnetLoader as AlbertLoader
 from transformers import AdamW, get_linear_schedule_with_warmup
-from modules.albert import AlbertTokenizer, AlbertModel
+from self_modules.albert import AlbertTokenizer, AlbertModel
 
 
 class Config(BaseConfig):

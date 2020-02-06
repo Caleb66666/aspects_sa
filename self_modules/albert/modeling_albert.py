@@ -202,7 +202,7 @@ class BertSelfAttention(nn.Module):
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-        # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
+        # Apply the attention mask is (precomputed for all self_modules in BertModel forward() function)
         attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
@@ -266,7 +266,7 @@ class BertAttention(nn.Module):
         mask = mask.view(-1).contiguous().eq(1)
         index = torch.arange(len(mask))[mask].long()
 
-        # Prune linear layers
+        # Prune linear self_modules
         self.self.query = prune_linear_layer(self.self.query, index)
         self.self.key = prune_linear_layer(self.self.key, index)
         self.self.value = prune_linear_layer(self.self.value, index)
@@ -1099,7 +1099,7 @@ class AlbertForTokenClassification(AlbertPreTrainedModel):
         return outputs  # (loss), scores, (hidden_states), (attentions)
 
 
-@add_start_docstrings("""Bert Model with a span classification head on top for extractive question-answering tasks like SQuAD (a linear layers on top of
+@add_start_docstrings("""Bert Model with a span classification head on top for extractive question-answering tasks like SQuAD (a linear self_modules on top of
     the hidden-states output to compute `span start logits` and `span end logits`). """,
                       BERT_START_DOCSTRING, BERT_INPUTS_DOCSTRING)
 class AlbertForQuestionAnswering(AlbertPreTrainedModel):

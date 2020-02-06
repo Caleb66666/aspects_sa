@@ -51,7 +51,7 @@ class BaseConfig(object):
 
         # restore模式
         self.restore = False
-        self.default_scale = 100
+        self.default_scale = 20
 
         # 设置debug模式
         self.debug = debug

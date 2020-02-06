@@ -51,8 +51,8 @@ class BertConfig(PretrainedConfig):
 
         Arguments:
             vocab_size_or_config_json_file: Vocabulary size of `inputs_ids` in `BertModel`.
-            hidden_size: Size of the encoder layers and the pooler layer.
-            num_hidden_layers: Number of hidden layers in the Transformer encoder.
+            hidden_size: Size of the encoder self_modules and the pooler layer.
+            num_hidden_layers: Number of hidden self_modules in the Transformer encoder.
             num_attention_heads: Number of attention heads for each attention layer in
                 the Transformer encoder.
             intermediate_size: The size of the "intermediate" (i.e., feed-forward)
@@ -60,7 +60,7 @@ class BertConfig(PretrainedConfig):
             hidden_act: The non-linear activation function (function or string) in the
                 encoder and pooler. If string, "gelu", "relu" and "swish" are supported.
             hidden_dropout_prob: The dropout probabilitiy for all fully connected
-                layers in the embeddings, encoder, and pooler.
+                self_modules in the embeddings, encoder, and pooler.
             attention_probs_dropout_prob: The dropout ratio for the attention
                 probabilities.
             max_position_embeddings: The maximum sequence length that this model might

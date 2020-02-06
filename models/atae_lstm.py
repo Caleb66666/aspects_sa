@@ -7,13 +7,13 @@ import os
 import torch
 from torch import nn
 from utils.ml_util import calc_f1
-from layers.dynamic_lstm import DynamicLSTM
-from layers.squeeze_embedding import Squeezer
-from layers.attention import NoQueryAttention
-from models.base_config import BaseConfig
+from self_modules.dynamic_lstm import DynamicLSTM
+from self_modules.squeeze_embedding import Squeezer
+from self_modules.attention import NoQueryAttention
+from base_config import BaseConfig
 from utils.path_util import abspath
-from data_loader import XlnetLoader as AtaeLoader
-from modules.albert import AlbertModel, AlbertTokenizer
+from base_loader import XlnetLoader as AtaeLoader
+from self_modules.albert import AlbertModel, AlbertTokenizer
 
 
 class Config(BaseConfig):

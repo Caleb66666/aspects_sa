@@ -10,12 +10,12 @@ import torch
 from torch import nn
 from allennlp.modules.seq2seq_encoders.bidirectional_language_model_transformer import \
     BidirectionalLanguageModelTransformer as TransformerEncoder
-from models.base_config import BaseConfig
+from base_config import BaseConfig
 from utils.path_util import abspath
 from utils.ml_util import calc_f1
-from data_loader import XlnetLoader as TransformerLoader
+from base_loader import XlnetLoader as TransformerLoader
 from transformers import AdamW, get_linear_schedule_with_warmup
-from modules.albert import AlbertTokenizer, AlbertModel
+from self_modules.albert import AlbertTokenizer, AlbertModel
 
 
 class Config(BaseConfig):
