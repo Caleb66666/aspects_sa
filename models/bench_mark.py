@@ -14,6 +14,7 @@ from self_modules.transfer_embedding import TransferEmbedding
 from self_modules.albert import AlbertModel, AlbertTokenizer
 from self_modules.dynamic_lstm import DynamicLSTM
 from allennlp.modules.attention import BilinearAttention
+from self_modules.attention import NoQueryAttention
 
 
 class Config(BaseConfig):
@@ -83,6 +84,16 @@ class SelfBiLinearAttentionWithPool(BilinearAttention):
         return self._activation(intermediate.bmm(matrix.transpose(1, 2)) + self._bias)
 
 
+class SelfNoQueryAttention(NoQueryAttention):
+    def __init__(self, input_dim, score_fn):
+        super().__init__(input_dim, score_fn=score_fn)
+
+    def forward(self, vector, **kwargs):
+        _, similarity = super().forward(vector)
+        attended_vector = torch.bmm(similarity, vector).squeeze()
+        return attended_vector
+
+
 class ExclusiveUnit(nn.Module):
     def __init__(self, input_dim, out_dim, dropout=0.0):
         super().__init__()
@@ -120,7 +131,8 @@ class Model(nn.Module):
             hidden_dim = config.hidden_dim * 2
         else:
             hidden_dim = config.hidden_dim
-        self.attention = SelfBiLinearAttentionWithPool(hidden_dim)
+        # self.attention = SelfBiLinearAttentionWithPool(hidden_dim)
+        self.attention = SelfNoQueryAttention(hidden_dim, score_fn="bi_linear")
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(hidden_dim, self.num_classes, dropout=config.dropout)
