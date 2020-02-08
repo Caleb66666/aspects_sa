@@ -100,8 +100,10 @@ class ExclusiveUnit(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
         self.dense = nn.Linear(input_dim, out_dim)
         self.dropout = nn.Dropout(dropout)
+        self.attention = SelfBiLinearAttentionWithPool(input_dim)
 
-    def forward(self, attended_seq, label=None, classes=None, average="micro"):
+    def forward(self, encoded_seq, label=None, classes=None, average="micro"):
+        attended_seq = self.attention(encoded_seq)
         dropped_seq = self.dropout(attended_seq)
         logits = self.dense(dropped_seq)
         if label is None:
@@ -131,8 +133,6 @@ class Model(nn.Module):
             hidden_dim = config.hidden_dim * 2
         else:
             hidden_dim = config.hidden_dim
-        # self.attention = SelfBiLinearAttentionWithPool(hidden_dim)
-        self.attention = SelfNoQueryAttention(hidden_dim, score_fn="bi_linear")
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(hidden_dim, self.num_classes, dropout=config.dropout)
@@ -144,7 +144,6 @@ class Model(nn.Module):
 
         embed_seq = self.embedding(seq_ids, seq_len)
         encoded_seq, _ = self.encoder(embed_seq, seq_len)
-        attended_seq = self.attention(encoded_seq)
 
         if labels is None:
             self.if_infer = True
@@ -153,7 +152,7 @@ class Model(nn.Module):
         total_logits, total_loss, total_f1 = list(), list(), list()
         for idx, (unit, label) in enumerate(zip(self.units, labels)):
             logits, criterion, f1 = unit(
-                attended_seq,
+                encoded_seq,
                 label,
                 self.classes,
                 average="macro"
