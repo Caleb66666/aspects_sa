@@ -95,6 +95,38 @@ class SelfNoQueryAttention(NoQueryAttention):
         return attended_vector
 
 
+class EnhanceEncoder(nn.Module):
+    def __init__(self, embed_dim, hidden_dim, num_layers, bidirectional, sort_within_batch):
+        super().__init__()
+        self.lstm = DynamicLSTM(input_size=embed_dim, hidden_size=hidden_dim, num_layers=num_layers,
+                                bidirectional=bidirectional, sort_within_batch=sort_within_batch)
+
+    @staticmethod
+    def enhance_matrix(matrix, mask):
+        attention = torch.matmul(matrix, matrix.transpose(1, 2))
+        self_attn = torch.softmax(attention + mask.unsqueeze(1), dim=-1)
+        self_align = torch.matmul(self_attn, matrix)
+        return self_align
+
+    @staticmethod
+    def gen_dynamic_mask(seq_len):
+        seq_len = seq_len.unsqueeze(-1)
+        batch_size, batch_max = seq_len.size(0), seq_len.max()
+        expanded_indices = torch.arange(0, batch_max).expand(batch_size, batch_max)
+        expanded_lengths = seq_len.expand(batch_size, batch_max)
+        batch_mask = (expanded_indices >= expanded_lengths)
+        return torch.masked_fill(batch_mask.float(), batch_mask, float("-inf")).to(seq_len.device)
+
+    def forward(self, embed_seq, seq_len):
+        encoded_seq, _ = self.lstm(embed_seq, seq_len)
+        dynamic_batch_mask = self.gen_dynamic_mask(seq_len)
+        self_align_seq = self.enhance_matrix(encoded_seq, dynamic_batch_mask)
+        return torch.cat([
+            encoded_seq,
+            self_align_seq
+        ], dim=-1)
+
+
 class ExclusiveUnit(nn.Module):
     def __init__(self, input_dim, out_dim, dropout=0.0):
         super().__init__()
@@ -124,17 +156,17 @@ class Model(nn.Module):
         self.average = config.average
 
         self.embedding = TransferEmbedding(config.transfer_cls, config.transfer_path, config.embedding_attributes)
-        self.encoder = DynamicLSTM(
-            input_size=config.embed_dim,
-            hidden_size=config.hidden_dim,
+        self.encoder = EnhanceEncoder(
+            embed_dim=config.embed_dim,
+            hidden_dim=config.hidden_dim,
             num_layers=config.num_layers,
             bidirectional=config.bidirectional,
             sort_within_batch=config.sort_within_batch
         )
         if config.bidirectional:
-            hidden_dim = config.hidden_dim * 2
+            hidden_dim = config.hidden_dim * 2 * 2
         else:
-            hidden_dim = config.hidden_dim
+            hidden_dim = config.hidden_dim * 2
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(hidden_dim, self.num_classes, dropout=config.dropout)
@@ -145,7 +177,7 @@ class Model(nn.Module):
         labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
 
         embed_seq = self.embedding(seq_ids, seq_len)
-        encoded_seq, _ = self.encoder(embed_seq, seq_len)
+        encoded_seq = self.encoder(embed_seq, seq_len)
 
         if labels is None:
             self.if_infer = True
