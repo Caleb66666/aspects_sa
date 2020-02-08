@@ -131,8 +131,8 @@ class Model(nn.Module):
             hidden_dim = config.hidden_dim * 2
         else:
             hidden_dim = config.hidden_dim
-        self.attention = SelfBiLinearAttentionWithPool(hidden_dim)
-        # self.attention = SelfNoQueryAttention(hidden_dim, score_fn="bi_linear")
+        # self.attention = SelfBiLinearAttentionWithPool(hidden_dim)
+        self.attention = SelfNoQueryAttention(hidden_dim, score_fn="bi_linear")
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(hidden_dim, self.num_classes, dropout=config.dropout)
