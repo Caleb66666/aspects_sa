@@ -22,6 +22,7 @@ class Config(BaseConfig):
         self.train_file = abspath("data/train.csv")
         self.valid_file = abspath("data/valid.csv")
         self.loader_cls = BenchLoader
+        self.average = "macro"
 
         self.num_classes = None
         self.num_labels = None
@@ -120,6 +121,7 @@ class Model(nn.Module):
         self.num_classes = config.num_classes
         self.num_labels = config.num_labels
         self.device = config.device
+        self.average = config.average
 
         self.embedding = TransferEmbedding(config.transfer_cls, config.transfer_path, config.embedding_attributes)
         self.encoder = DynamicLSTM(
@@ -155,7 +157,7 @@ class Model(nn.Module):
                 encoded_seq,
                 label,
                 self.classes,
-                average="macro"
+                average=self.average
             )
             total_logits.append(logits), total_loss.append(criterion), total_f1.append(f1)
 
