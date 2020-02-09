@@ -112,7 +112,7 @@ class EnhanceEncoder(nn.Module):
     def gen_dynamic_mask(seq_len):
         seq_len = seq_len.unsqueeze(-1)
         batch_size, batch_max = seq_len.size(0), seq_len.max()
-        expanded_indices = torch.arange(0, batch_max).expand(batch_size, batch_max)
+        expanded_indices = torch.arange(0, batch_max).expand(batch_size, batch_max).to(seq_len.device)
         expanded_lengths = seq_len.expand(batch_size, batch_max)
         batch_mask = (expanded_indices >= expanded_lengths)
         return torch.masked_fill(batch_mask.float(), batch_mask, float("-inf")).to(seq_len.device)
