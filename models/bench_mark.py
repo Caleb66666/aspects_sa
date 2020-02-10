@@ -27,7 +27,7 @@ class Config(BaseConfig):
         self.num_classes = None
         self.num_labels = None
         self.classes = None
-        self.improve_require = 40000
+        self.improve_require = 400000
         self.eval_per_batches = 200
         self.schedule_per_batches = 200
 
