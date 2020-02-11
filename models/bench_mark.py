@@ -5,6 +5,7 @@
 
 import os
 import torch
+import numpy as np
 from torch import nn
 from base_config import BaseConfig
 from utils.path_util import abspath
@@ -15,6 +16,11 @@ from self_modules.albert import AlbertModel, AlbertTokenizer
 from self_modules.dynamic_lstm import DynamicLSTM
 from allennlp.modules.attention import BilinearAttention
 from self_modules.attention import NoQueryAttention
+
+from overrides import overrides
+from torch.nn.parameter import Parameter
+from allennlp.modules.similarity_functions.similarity_function import SimilarityFunction
+from allennlp.nn import Activation
 
 
 class Config(BaseConfig):
@@ -36,6 +42,7 @@ class Config(BaseConfig):
         self.batch_size = 64
         self.embed_dim = 128
         self.hidden_dim = 128
+        self.aspects_dim = 32
         self.num_layers = 1
         self.bidirectional = True
 
@@ -119,12 +126,40 @@ class EnhanceEncoder(nn.Module):
 
     def forward(self, embed_seq, seq_len):
         encoded_seq, _ = self.lstm(embed_seq, seq_len)
-        dynamic_batch_mask = self.gen_dynamic_mask(seq_len)
-        self_align_seq = self.enhance_matrix(encoded_seq, dynamic_batch_mask)
-        return torch.cat([
-            encoded_seq,
-            self_align_seq
-        ], dim=-1)
+        # dynamic_batch_mask = self.gen_dynamic_mask(seq_len)
+        # self_align_seq = self.enhance_matrix(encoded_seq, dynamic_batch_mask)
+        # return torch.cat([
+        #     encoded_seq,
+        #     self_align_seq
+        # ], dim=-1)
+        return encoded_seq
+
+
+@SimilarityFunction.register("bi-linear-similarity")
+class BiLinearSimilarity(SimilarityFunction):
+    """
+    由于使用了动态lstm，所以每个batch的seq_len不固定，在该单元中对应的是tensor_2_dim
+    """
+
+    def __init__(self,
+                 tensor_1_dim: int,
+                 tensor_2_dim: int,
+                 activation: Activation = None) -> None:
+        super(BiLinearSimilarity, self).__init__()
+        self._weight_matrix = Parameter(torch.zeros(size=(tensor_1_dim, tensor_2_dim)), requires_grad=True)
+        self._bias = Parameter(torch.zeros(size=(1,)), requires_grad=True)
+        self._activation = activation or Activation.by_name('linear')()
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        torch.nn.init.xavier_uniform_(self._weight_matrix)
+        self._bias.data.fill_(0)
+
+    @overrides
+    def forward(self, tensor_1: torch.Tensor, tensor_2: torch.Tensor) -> torch.Tensor:
+        intermediate = torch.matmul(tensor_1, self._weight_matrix)
+        result = torch.bmm(tensor_2.transpose(1, 2), intermediate.unsqueeze(-1)).squeeze()
+        return result
 
 
 class ExclusiveUnit(nn.Module):
@@ -135,7 +170,10 @@ class ExclusiveUnit(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.attention = SelfBiLinearAttentionWithPool(input_dim)
 
-    def forward(self, encoded_seq, label=None, classes=None, average="micro"):
+    def forward(self, aspect_embed, encoded_seq, label=None, classes=None, average="micro"):
+        aspect_embed = aspect_embed.unsqueeze(0).expand(encoded_seq.size(0), -1).unsqueeze(1).expand(
+            -1, encoded_seq.size(1), -1)
+        encoded_seq = torch.cat([encoded_seq, aspect_embed], dim=-1)
         attended_seq = self.attention(encoded_seq)
         dropped_seq = self.dropout(attended_seq)
         logits = self.dense(dropped_seq)
@@ -155,7 +193,8 @@ class Model(nn.Module):
         self.device = config.device
         self.average = config.average
 
-        self.embedding = TransferEmbedding(config.transfer_cls, config.transfer_path, config.embedding_attributes)
+        self.aspects_embedding = nn.Embedding(self.num_labels, config.aspects_dim)
+        self.word_embedding = TransferEmbedding(config.transfer_cls, config.transfer_path, config.embedding_attributes)
         self.encoder = EnhanceEncoder(
             embed_dim=config.embed_dim,
             hidden_dim=config.hidden_dim,
@@ -164,19 +203,25 @@ class Model(nn.Module):
             sort_within_batch=config.sort_within_batch
         )
         if config.bidirectional:
-            hidden_dim = config.hidden_dim * 2 * 2
+            hidden_dim = config.hidden_dim * 2 + config.aspects_dim
         else:
-            hidden_dim = config.hidden_dim * 2
+            hidden_dim = config.hidden_dim + config.aspects_dim
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(hidden_dim, self.num_classes, dropout=config.dropout)
             self.add_module(f"exclusive_unit_{idx}", unit)
             self.units.append(unit)
 
+        self.reset_parameters(config)
+
+    def reset_parameters(self, config):
+        with torch.no_grad():
+            self.aspects_embedding.weight.normal_(mean=0.0, std=1.0 / np.sqrt(config.aspects_dim))
+
     def forward(self, inputs):
         labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
 
-        embed_seq = self.embedding(seq_ids, seq_len)
+        embed_seq = self.word_embedding(seq_ids, seq_len)
         encoded_seq = self.encoder(embed_seq, seq_len)
 
         if labels is None:
@@ -185,7 +230,9 @@ class Model(nn.Module):
 
         total_logits, total_loss, total_f1 = list(), list(), list()
         for idx, (unit, label) in enumerate(zip(self.units, labels)):
+            aspect_embed = self.aspects_embedding(torch.tensor(idx).long().to(self.device))
             logits, criterion, f1 = unit(
+                aspect_embed,
                 encoded_seq,
                 label,
                 self.classes,

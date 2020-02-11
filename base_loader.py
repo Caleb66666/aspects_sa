@@ -196,8 +196,7 @@ class XlnetLoader(BaseLoader):
                 fields.append((column, float_field))
             else:
                 fields.append((column, label_field))
-        if not config.debug:
-            serialize(config.dl_path, [train_df, valid_df, fields, label_field, columns])
+        serialize(config.dl_path, [train_df, valid_df, fields, label_field, columns])
         return train_df, valid_df, fields, label_field, columns
 
 

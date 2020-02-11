@@ -10,6 +10,5 @@ nohup python -u train_infer.py \
             --pattern train \
             --model "$model" \
             --seed 279 \
-            --restore \
             &
 tail -f "$out"

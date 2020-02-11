@@ -3,8 +3,34 @@
 # @Email: VanderLancer@gmail.com
 # @time: 2020/2/5 16:53:25
 
-from self_modules.squeeze_embedding import Squeezer
+import torch
 from torch import nn
+
+
+class Squeezer(nn.Module):
+    def __init__(self, batch_first=True):
+        super(Squeezer, self).__init__()
+
+        self.batch_first = batch_first
+
+    def forward(self, x, x_len):
+        # 从大到小排序
+        x_sort_idx = torch.sort(-x_len)[1].long()
+        # 经过从大到小排序后，记录原来的索引位置
+        x_unsort_idx = torch.sort(x_sort_idx)[1].long()
+
+        # 重新排列
+        x_len = x_len[x_sort_idx]
+        x = x[x_sort_idx]
+
+        # pack
+        p_x = nn.utils.rnn.pack_padded_sequence(x, x_len, batch_first=self.batch_first)
+
+        # unpack
+        up_x = nn.utils.rnn.pad_packed_sequence(p_x, batch_first=self.batch_first)
+
+        out = up_x[0]
+        return out[x_unsort_idx]
 
 
 class TransferEmbedding(nn.Module):
