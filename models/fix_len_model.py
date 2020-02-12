@@ -102,7 +102,8 @@ class Model(nn.Module):
 
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
-            unit = ExclusiveUnit(hidden_dim, self.num_classes, config.aspects_dim, config.max_seq, dropout=config.dropout)
+            unit = ExclusiveUnit(hidden_dim, self.num_classes, config.aspects_dim, config.max_seq,
+                                 dropout=config.dropout)
             self.add_module(f"exclusive_unit_{idx}", unit)
             self.units.append(unit)
 

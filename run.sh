@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-model=fix_len_model
+model=bench_mark
 out=nohup.out
 if [[ ! -f "$out" ]]; then
     touch "$out"

@@ -42,7 +42,7 @@ class Config(BaseConfig):
         self.batch_size = 64
         self.embed_dim = 128
         self.hidden_dim = 128
-        self.aspects_dim = 32
+        self.aspects_dim = 64
         self.num_layers = 1
         self.bidirectional = True
 
@@ -194,7 +194,8 @@ class Model(nn.Module):
         self.average = config.average
 
         self.aspects_embedding = nn.Embedding(self.num_labels, config.aspects_dim)
-        self.word_embedding = TransferEmbeddingWithSqueezer(config.transfer_cls, config.transfer_path, config.embedding_attributes)
+        self.word_embedding = TransferEmbeddingWithSqueezer(config.transfer_cls, config.transfer_path,
+                                                            config.embedding_attributes, fine_tune_embed=False)
         self.encoder = EnhanceEncoder(
             embed_dim=config.embed_dim,
             hidden_dim=config.hidden_dim,
