@@ -11,7 +11,7 @@ from base_config import BaseConfig
 from utils.path_util import abspath
 from utils.ml_util import calc_f1
 from base_loader import XlnetLoader as BenchLoader
-from self_modules.transfer_embedding import TransferEmbedding
+from self_modules.transfer_embedding import TransferEmbeddingWithSqueezer
 from self_modules.albert import AlbertModel, AlbertTokenizer
 from self_modules.dynamic_lstm import DynamicLSTM
 from allennlp.modules.attention import BilinearAttention
@@ -194,7 +194,7 @@ class Model(nn.Module):
         self.average = config.average
 
         self.aspects_embedding = nn.Embedding(self.num_labels, config.aspects_dim)
-        self.word_embedding = TransferEmbedding(config.transfer_cls, config.transfer_path, config.embedding_attributes)
+        self.word_embedding = TransferEmbeddingWithSqueezer(config.transfer_cls, config.transfer_path, config.embedding_attributes)
         self.encoder = EnhanceEncoder(
             embed_dim=config.embed_dim,
             hidden_dim=config.hidden_dim,

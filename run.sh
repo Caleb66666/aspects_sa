@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-model=bench_mark
+model=fix_len_model
 out=nohup.out
 if [[ ! -f "$out" ]]; then
     touch "$out"
@@ -10,5 +10,6 @@ nohup python -u train_infer.py \
             --pattern train \
             --model "$model" \
             --seed 279 \
+            --debug \
             &
 tail -f "$out"
