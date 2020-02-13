@@ -91,7 +91,7 @@ def train():
     if args.restore:
         model, optimizer, scheduler, epoch, best_loss, last_improve = config.restore_model(model, optimizer, scheduler)
         # 有时候为了续接训练，需要适当的对原优化器lr进行调整
-        config.set_restore_lr(optimizer)
+        config.set_restore_lr(optimizer, args.scale_lr)
         assist_params.update({"cur_epoch": epoch,
                               "best_loss": best_loss,
                               "cur_batches": len(dl.train_batches) * epoch,
@@ -130,10 +130,13 @@ if __name__ == '__main__':
     parser.add_argument("--model", type=str, required=True, help="choose a model: albert_attn_pool/xlnet_attn_pool")
     parser.add_argument("--seed", default=279, type=int, help="random seed")
     parser.add_argument("--restore", action="store_true", default=False, help="restore from ckpt")
+    parser.add_argument("--scale_lr", default=1.0, type=float, help="scale the lr when restoring model")
     parser.add_argument("--debug", action="store_true", default=False, help="debug model for one batch")
     args = parser.parse_args()
 
     if args.pattern == "train":
         train()
-    else:
+    elif args.pattern == "infer":
         infer()
+    else:
+        raise ValueError(f"Error pattern: {args.pattern}")
