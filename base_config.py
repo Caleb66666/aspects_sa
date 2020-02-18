@@ -15,7 +15,7 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 
 
 class BaseConfig(object):
-    def __init__(self, name, seed, debug):
+    def __init__(self, name, debug):
         self.name = name
 
         # 训练设备设置
@@ -23,7 +23,6 @@ class BaseConfig(object):
         self.n_gpu = torch.cuda.device_count()
 
         # 设置随机种子
-        self.seed = seed
         self.set_seed()
 
         # data-loader，处理完的数据序列化的位置，不需要再次初始化、预处理、分词、word-piece、sentence-piece等操作

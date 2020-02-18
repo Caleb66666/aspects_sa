@@ -364,7 +364,7 @@ class TrainLoader(object):
         # 如果没有已训练好的w2v模型，则重新生成，或者也可以用外部词向量-比如腾讯词向量代替
         if not os.path.exists(self.config.w2v_path):
             w2v_model = Word2Vec(train_df["tokens"], size=self.config.embed_dim, window=10, min_count=1, workers=4,
-                                 iter=15, seed=self.config.seed, max_vocab_size=self.config.vocab_size)
+                                 iter=15, seed=self.config.seed, max_vocab_size=self.config.max_vocab)
             w2v_model.wv.save_word2vec_format(self.config.w2v_path, binary=False)
         else:
             w2v_model = KeyedVectors.load_word2vec_format(self.config.w2v_path, binary=False)
