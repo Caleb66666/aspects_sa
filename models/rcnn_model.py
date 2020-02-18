@@ -73,7 +73,7 @@ class Config(BaseConfig):
         self.eval_per_batches = 200
         self.f1_average = "macro"
 
-        super(Config, self).__init__(os.path.basename(__file__).split(".")[0], self.seed, debug)
+        super(Config, self).__init__(os.path.basename(__file__).split(".")[0], debug)
 
     def build_optimizer_scheduler(self, model, train_batches_len, **kwargs):
         return super(Config, self).build_optimizer_scheduler(
