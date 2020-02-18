@@ -65,7 +65,7 @@ def train():
     model_module = import_module(f"models.{args.model.lower()}")
 
     # config总管所有参数、dl总管原始数据的处理以及分成batches等、model代表建立的模型，optimizer优化器、scheduler学习率调度器
-    config = model_module.Config(args.seed, args.debug)
+    config = model_module.Config(args.debug)
     dl = config.loader_cls(config)
     model = model_module.Model(config)
     optimizer, scheduler = config.build_optimizer_scheduler(model, len(dl.train_batches))
@@ -128,7 +128,6 @@ if __name__ == '__main__':
 
     parser.add_argument("--pattern", default="train", type=str, help="train or test")
     parser.add_argument("--model", type=str, required=True, help="choose a model: albert_attn_pool/xlnet_attn_pool")
-    parser.add_argument("--seed", default=279, type=int, help="random seed")
     parser.add_argument("--restore", action="store_true", default=False, help="restore from ckpt")
     parser.add_argument("--scale_lr", default=1.0, type=float, help="scale the lr when restoring model")
     parser.add_argument("--debug", action="store_true", default=False, help="debug model for one batch")

@@ -12,6 +12,7 @@ events.*
 *.txt
 .DS_Store
 *.csv
+*.bin
 
 
 ### Python ###
