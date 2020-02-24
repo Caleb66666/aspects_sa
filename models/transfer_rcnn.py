@@ -1,14 +1,16 @@
-# @File: rcnn_model
+# @File: transfer_rcnn
 # @Author : Caleb
 # @Email: VanderLancer@gmail.com
-# @time: 2020/2/18 18:29:56
+# @time: 2020/2/24 16:28:01
+
 
 import os
 import torch
 from torch import nn
 from models.base_model import BaseConfig, ExclusiveUnit
-from data_loader.char_loader import TrainLoader
+from data_loader.transfer_loader import TrainLoader
 from utils.path_util import abspath
+from custom_modules.albert import AlbertModel
 
 
 class Config(BaseConfig):
@@ -32,26 +34,24 @@ class Config(BaseConfig):
         self.sep = ","
         self.encoding = "utf-8"
 
-        # 分词相关
+        # 分词、索引相关
         self.stop_dict = abspath("library/stopwords.dict")
-        self.max_vocab = 20000
-        self.pad_id = 0
-        self.pad_token = "<pad>"
-        self.unk_id = 1
-        self.unk_token = "<unk>"
+        if debug:
+            self.transfer_path = "/Users/Vander/Code/pytorch_col/albert-base-chinese"
+        else:
+            self.transfer_path = "/data/wangqian/berts/albert-base-chinese"
+        self.fine_tune_embed = True
+        self.truncate_method = "head"
 
         # 词嵌入相关
         self.embed_dim = 128
-        self.window = 10
-        self.min_count = 1
-        self.iterations = 20
 
         # batch化相关
         self.sort_within_batch = False
         self.batch_size = 64
 
         # 模型结构相关
-        self.hidden_dim = 128
+        self.hidden_dim = 256
         self.bidirectional = True
         self.num_layers = 1
 
@@ -102,12 +102,15 @@ class Model(nn.Module):
         self.device = config.device
         self.f1_average = config.f1_average
 
-        self.tokens_embedding = nn.Embedding(config.embed_matrix.shape[0], config.embed_matrix.shape[1])
-        self.tokens_embedding.from_pretrained(torch.from_numpy(config.embed_matrix))
-        self.tokens_embedding.weight.requires_grad = True
+        # 只取其词嵌入
+        albert = AlbertModel.from_pretrained(config.transfer_path)
+        [setattr(param, "requires_grad", False) for param in albert.parameters()]
+        self.embedding = albert.embeddings.word_embeddings
+        if config.fine_tune_embed:
+            [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
 
         self.encoder = nn.LSTM(config.embed_dim, hidden_size=config.hidden_dim, bias=True, batch_first=True,
-                               bidirectional=self.bidirectional, num_layers=self.num_layers)
+                               bidirectional=config.bidirectional, num_layers=config.num_layers)
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(
@@ -121,7 +124,7 @@ class Model(nn.Module):
     def forward(self, inputs):
         labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
 
-        embed_seq = self.tokens_embedding(seq_ids)
+        embed_seq = self.embedding(seq_ids)
         encoded_seq, _ = self.encoder(embed_seq)
         encoded_seq = torch.cat([embed_seq, encoded_seq], dim=-1)
         encoded_seq = torch.relu(encoded_seq)

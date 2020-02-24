@@ -1,73 +1,77 @@
-# @File: new_base_config
+# @File: base_model
 # @Author : Caleb
 # @Email: VanderLancer@gmail.com
-# @time: 2020/1/20 14:40:04
+# @time: 2020/2/18 18:14:54
 
 import os
 import torch
+import random
 import math
 import numpy as np
-import random
-from utils.path_util import abspath, keep_max_backup, newest_file
 from utils.time_util import cur_time_stamp
-from utils.ml_util import scale_lr
+from utils.path_util import abspath, keep_max_backup, newest_file
+from utils.ml_util import scale_lr, calc_f1
 from transformers import AdamW, get_linear_schedule_with_warmup
+from torch import nn
+from allennlp.nn.util import masked_softmax
 
 
 class BaseConfig(object):
-    def __init__(self, name, debug):
-        self.name = name
-
+    def __init__(self, name, debug, seed):
         # 训练设备设置
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gpu = torch.cuda.device_count()
 
         # 设置随机种子
-        self.set_seed()
+        self.set_seed(seed)
 
         # data-loader，处理完的数据序列化的位置，不需要再次初始化、预处理、分词、word-piece、sentence-piece等操作
-        self.dl_path = abspath(f"data/{self.name}.pt")
-        self.sort_within_batch = True
+        self.dl_path = abspath(f"data/{name}.pt")
 
         # 存储模型位置设置，使用时间戳进行模型的命名
-        self.model_dir = abspath(f"checkpoints/{self.name}")
+        self.model_dir = abspath(f"checkpoints/{name}")
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         self.model_ckpt = os.path.join(self.model_dir, "{}.ckpt")
         self.max_backup = 3  # 最多的模型保存
 
         # 训练损失记录设置
-        self.summary_dir = abspath(f"summary/{self.name}")
+        self.summary_dir = abspath(f"summary/{name}")
         if not os.path.exists(self.summary_dir):
             os.makedirs(self.summary_dir)
 
         # 日志记录
-        self.logger_name = self.name
-        self.logger_dir = abspath(f"log/{self.name}")
+        self.logger_name = name
+        self.logger_dir = abspath(f"log/{name}")
         if not os.path.exists(self.logger_dir):
             os.makedirs(self.logger_dir)
         self.logger_file = os.path.join(self.logger_dir, "{}.log")
 
         # restore模式
-        self.restore = False
+        self.restore_model = False
         self.default_scale = 1
 
+        # 词嵌入相关
+        self.w2v_dir = abspath(f"library/{name}")
+        if not os.path.exists(self.w2v_dir):
+            os.makedirs(self.w2v_dir)
+        self.w2v_path = os.path.join(self.w2v_dir, f"{name}.w2v.txt")
+
         # 设置debug模式
-        self.debug = debug
-        if self.debug:
+        if debug:
             self.epochs = 1
             self.batch_size = 2
-            self.dl_path = abspath(f"data/{self.name}.debug.pt")
+            self.dl_path = abspath(f"data/{name}.debug.pt")
             self.logger_file = os.path.join(self.logger_dir, "{}.debug.log")
             self.model_ckpt = os.path.join(self.model_dir, "{}.debug.ckpt")
+            self.w2v_path = os.path.join(self.w2v_dir, f"{name}.debug.w2v.txt")
 
-    def set_seed(self):
-        random.seed(self.seed)
-        np.random.seed(self.seed)
-        torch.manual_seed(self.seed)
+    def set_seed(self, seed):
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
         if self.n_gpu > 0:
-            torch.cuda.manual_seed_all(self.seed)
-        # torch.backends.cudnn.deterministic = true
+            torch.cuda.manual_seed_all(seed)
 
     def save_model(self, model, optimizer, scheduler, epoch, best_loss, last_improve):
         """
@@ -125,8 +129,68 @@ class BaseConfig(object):
         return optimizer, scheduler
 
     def set_restore_lr(self, optimizer, scale=None):
-        if self.restore:
+        if self.restore_model:
             return
-        self.restore = True
+        self.restore_model = True
         scale = scale or self.default_scale
         scale_lr(optimizer, scale)
+
+
+class AttnPool(nn.Module):
+    def __init__(self, input_size):
+        super().__init__()
+
+        self._weight_vector = nn.Parameter(torch.zeros(size=(input_size,)), requires_grad=True)
+        self._bias = nn.Parameter(torch.zeros(size=(1,)), requires_grad=True)
+
+    def reset_parameters(self):
+        torch.nn.init.xavier_uniform_(self._weight_matrix)
+        self._bias.data.fill_(0)
+
+    def forward(self, input_x, x_mask):
+        activated_x = torch.tanh(input_x)
+        attn_value = torch.matmul(activated_x, self._weight_vector)
+        normalized_attn = masked_softmax(attn_value, x_mask, dim=1)
+        weighted_x = input_x * normalized_attn.unsqueeze(-1)
+        pooled_x = torch.sum(weighted_x, dim=1)
+        return pooled_x
+
+
+class ExclusiveUnit(nn.Module):
+    def __init__(self, input_dim, out_dim, dropout=0.0):
+        super().__init__()
+        self.criterion = nn.CrossEntropyLoss()
+        self.attn_pool = AttnPool(input_dim)
+        self.dropout = nn.Dropout(dropout)
+        self.dense = nn.Linear(input_dim * 3, out_dim)
+
+    @staticmethod
+    def avg_pool_on_seq(tensor):
+        """
+        一般tensor为三维矩阵，pool的层级一般是seq_len层级
+        :param tensor:
+        :return:
+        """
+        avg_p = torch.avg_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        return avg_p
+
+    @staticmethod
+    def max_pool_on_seq(tensor):
+        """
+        一般tensor为三维矩阵，pool的层级一般是seq_len层级
+        :param tensor:
+        :return:
+        """
+        max_p = torch.max_pool1d(tensor.transpose(1, 2), tensor.size(1)).squeeze(-1)
+        return max_p
+
+    def forward(self, encoded_seq, seq_mask, label=None, classes=None, average=None):
+        avg_pool = self.avg_pool_on_seq(encoded_seq)
+        max_pool = self.max_pool_on_seq(encoded_seq)
+        attn_pool = self.attn_pool(encoded_seq, seq_mask)
+        concat_pool = torch.cat([avg_pool, max_pool, attn_pool], dim=1)
+        dropped_pool = self.dropout(concat_pool)
+        logits = self.dense(dropped_pool)
+        if label is None:
+            return logits, None, None
+        return logits, self.criterion(logits, label), calc_f1(logits, label, classes, average=average)
