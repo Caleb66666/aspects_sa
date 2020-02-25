@@ -54,6 +54,7 @@ class Config(BaseConfig):
         self.hidden_dim = 128
         self.bidirectional = True
         self.num_layers = 1
+        self.linear_dim = 128
 
         # 训练速率相关
         self.epochs = 80
@@ -112,7 +113,8 @@ class Model(nn.Module):
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(
                 config.embed_dim + config.hidden_dim * 2,
-                self.num_classes,
+                config.num_classes,
+                config.linear_dim,
                 dropout=config.dropout
             )
             self.add_module(f"exclusive_unit_{idx}", unit)

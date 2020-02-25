@@ -157,12 +157,20 @@ class AttnPool(nn.Module):
 
 
 class ExclusiveUnit(nn.Module):
-    def __init__(self, input_dim, out_dim, dropout=0.0):
+    def __init__(self, input_dim, out_dim, linear_dim, dropout=0.0):
         super().__init__()
         self.criterion = nn.CrossEntropyLoss()
         self.attn_pool = AttnPool(input_dim)
         self.dropout = nn.Dropout(dropout)
-        self.dense = nn.Linear(input_dim * 3, out_dim)
+        # self.fc = nn.Linear(input_dim * 3, out_dim)
+        self.fc = nn.Sequential(
+            nn.BatchNorm1d(input_dim * 3),
+            nn.Linear(input_dim * 3, linear_dim),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(linear_dim),
+            nn.Dropout(dropout),
+            nn.Linear(linear_dim, out_dim)
+        )
 
     @staticmethod
     def avg_pool_on_seq(tensor):
@@ -189,8 +197,7 @@ class ExclusiveUnit(nn.Module):
         max_pool = self.max_pool_on_seq(encoded_seq)
         attn_pool = self.attn_pool(encoded_seq, seq_mask)
         concat_pool = torch.cat([avg_pool, max_pool, attn_pool], dim=1)
-        dropped_pool = self.dropout(concat_pool)
-        logits = self.dense(dropped_pool)
+        logits = self.fc(concat_pool)
         if label is None:
             return logits, None, None
         return logits, self.criterion(logits, label), calc_f1(logits, label, classes, average=average)
