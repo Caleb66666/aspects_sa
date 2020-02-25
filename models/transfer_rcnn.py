@@ -60,7 +60,7 @@ class Config(BaseConfig):
         self.epochs = 80
         self.lr = 8e-5
         self.dropout = 0.5
-        self.weight_decay = 1e-2
+        self.weight_decay = 5e-4
         self.warm_up_proportion = 0.1
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
