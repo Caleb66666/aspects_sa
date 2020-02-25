@@ -34,7 +34,7 @@ class TrainLoader(BaseLoader):
             device=self.config.device,
             sort_within_batch=self.config.sort_within_batch,
             len_column=self.len_column,
-            label_field=label_field,
+            build_vocab_field=label_field,
         )
 
         config.classes = list(label_field.vocab.stoi.values())

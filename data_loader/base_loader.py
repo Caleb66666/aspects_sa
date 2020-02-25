@@ -352,9 +352,9 @@ class BaseLoader(object):
         return long_field, float_field, label_field, fields
 
     def batch_data(self, train_df, valid_df, fields, columns, batch_size, device, sort_within_batch, len_column,
-                   label_field):
+                   build_vocab_field):
         train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
-        label_field.build_vocab(train_ds)
+        build_vocab_field.build_vocab(train_ds)
         train_iter, valid_iter = BucketIterator.splits(
             (train_ds, valid_ds),
             batch_size=batch_size,
