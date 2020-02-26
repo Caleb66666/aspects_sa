@@ -3,9 +3,9 @@
 # @Email: VanderLancer@gmail.com
 # @time: 2020/2/1 19:20:55
 
+import math
 import torch
 from torch import nn
-import math
 
 
 class Attention(nn.Module):
@@ -96,6 +96,54 @@ class NoQueryAttention(Attention):
         return super(NoQueryAttention, self).forward(k, q)
 
 
+class SelfAttnMatch(nn.Module):
+    """Given sequences X and Y, match sequence Y to each element in X.
+    * o_i = sum(alpha_j * x_j) for i in X
+    * alpha_j = softmax(x_j * x_i)
+    """
+
+    def __init__(self, input_size, identity=False, diagonal=True):
+        super(SelfAttnMatch, self).__init__()
+        if not identity:
+            self.linear = nn.Linear(input_size, input_size)
+        else:
+            self.linear = None
+        self.diagonal = diagonal
+
+    def forward(self, x, x_mask):
+        """
+        Args:
+            x: batch * len1 * dim1
+            x_mask: batch * len1 (1 for padding, 0 for true)
+        Output:
+            matched_seq: batch * len1 * dim1
+        """
+        # Project vectors
+        if self.linear:
+            x_projection = self.linear(x.view(-1, x.size(2))).view(x.size())
+            x_projection = torch.relu(x_projection)
+        else:
+            x_projection = x
+
+        # Compute scores
+        scores = x_projection.bmm(x_projection.transpose(2, 1))
+        if not self.diagonal:
+            x_len = x.size(1)
+            for i in range(x_len):
+                scores[:, i, i] = 0
+
+        # Mask padding
+        x_mask = x_mask.unsqueeze(1).expand(scores.size())
+        scores = torch.masked_fill(scores, x_mask.to(dtype=torch.bool), -float('inf'))
+
+        # Normalize with softmax
+        alpha = torch.softmax(scores, dim=2)
+
+        # Take weighted average
+        matched_seq = alpha.bmm(x)
+        return matched_seq
+
+
 if __name__ == '__main__':
     from utils.ml_util import gen_random_mask
 
@@ -111,4 +159,6 @@ if __name__ == '__main__':
     embed_seq_ = torch.randn(size=[batch_size_, max_seq_, embed_dim_])
     seq_mask_, seq_len_ = gen_random_mask(batch_size_, max_seq_)
 
-    attention_ = Attention(embed_dim_, hidden_size_, num_classes_, n_head_, )
+    # attention_ = Attention(embed_dim_, hidden_size_, num_classes_, n_head_, )
+    self_attn = SelfAttnMatch(embed_dim_)
+    print(self_attn(embed_seq_, seq_mask_).size())
