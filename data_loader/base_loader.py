@@ -204,7 +204,7 @@ class BaseLoader(object):
         raise RuntimeError(f"files len: {len(files)} should be 1 or 2")
 
     @staticmethod
-    def _pretreatment(text):
+    def _pretreatment(text, if_lower=False):
         """
         主要是预处理文本，或者其他去除特殊字符的处理，如果有其他方面的需求，就在子类中将这个方法重载了
         :param text:
@@ -212,15 +212,17 @@ class BaseLoader(object):
         """
         text = t2s(text)
         text = full2half(text)
+        if if_lower:
+            return text.lower()
         return text
 
-    def pretreatment_text(self, train_df, valid_df, premise, debug):
+    def pretreatment_text(self, train_df, valid_df, premise, debug, if_lower):
         if debug:
             for df in (train_df, valid_df):
-                df[premise] = df[premise].apply(self._pretreatment)
+                df[premise] = df[premise].apply(lambda text: self._pretreatment(text, if_lower))
         else:
             for df in (train_df, valid_df):
-                df[premise] = df[premise].parallel_apply(self._pretreatment)
+                df[premise] = df[premise].parallel_apply(lambda text: self._pretreatment(text, if_lower))
         return train_df, valid_df
 
     @staticmethod

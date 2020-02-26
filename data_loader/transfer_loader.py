@@ -53,7 +53,8 @@ class TrainLoader(BaseLoader):
             encoding=self.config.encoding
         )
 
-        train_df, valid_df = self.pretreatment_text(train_df, valid_df, self.config.premise, self.config.debug)
+        train_df, valid_df = self.pretreatment_text(train_df, valid_df, self.config.premise, self.config.debug,
+                                                    self.config.if_lower)
 
         tokenizer = AlbertTokenizer.from_pretrained(self.config.transfer_path)
         train_df, valid_df, if_custom_tokenizer, tokenizer = self.tokenize_and_index(
