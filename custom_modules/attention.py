@@ -120,7 +120,9 @@ class SelfAttnMatch(nn.Module):
         """
         # Project vectors
         if self.linear:
-            x_projection = self.linear(x.view(-1, x.size(2))).view(x.size())
+            x_shaped = torch.reshape(x, shape=[-1, x.size(2)]).to(x.device)
+            x_projection = self.linear(x_shaped)
+            x_projection = x_projection.view(x.size())
             x_projection = torch.relu(x_projection)
         else:
             x_projection = x
