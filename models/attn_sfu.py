@@ -4,7 +4,6 @@
 # @time: 2020/2/26 14:37:59
 
 import os
-import torch
 from torch import nn
 from models.base_model import BaseConfig, ExclusiveUnit
 from data_loader.transfer_loader import TrainLoader
@@ -34,10 +33,10 @@ class Config(BaseConfig):
         self.header = 0
         self.sep = ","
         self.encoding = "utf-8"
-        self.lower = True
+        self.if_lower = True
 
         # 分词、索引相关
-        self.stop_dict = abspath("library/stopwords.dict")
+        self.stop_dict = abspath("library/stop_symbols.txt")
         if debug:
             self.transfer_path = "/Users/Vander/Code/pytorch_col/albert-base-chinese"
         else:
@@ -135,7 +134,7 @@ class Model(nn.Module):
 
         embed_seq = self.embedding(seq_ids)
         encoded_seq, _ = self.encoder(embed_seq)
-        self_attn_seq = self.self_attn(encoded_seq)
+        self_attn_seq = self.self_attn(encoded_seq, seq_mask)
         fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
 
         if labels is None:

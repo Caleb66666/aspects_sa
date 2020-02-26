@@ -33,7 +33,7 @@ class Config(BaseConfig):
         self.header = 0
         self.sep = ","
         self.encoding = "utf-8"
-        self.lower = True
+        self.if_lower = True
 
         # 分词、索引相关
         self.stop_dict = abspath("library/stopwords.dict")
