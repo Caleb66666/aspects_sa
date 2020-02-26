@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-model=transfer_rcnn
+model=attn_sfu
 out=nohup.out
 if [[ ! -f "$out" ]]; then
     touch "$out"
