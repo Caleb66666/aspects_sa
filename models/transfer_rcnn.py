@@ -29,10 +29,11 @@ class Config(BaseConfig):
         self.premise = "content"
         self.hypothesis = None
         self.shuffle = True
-        self.max_seq = 1200
+        self.max_seq = 1000
         self.header = 0
         self.sep = ","
         self.encoding = "utf-8"
+        self.lower = True
 
         # 分词、索引相关
         self.stop_dict = abspath("library/stopwords.dict")
@@ -129,7 +130,6 @@ class Model(nn.Module):
         embed_seq = self.embedding(seq_ids)
         encoded_seq, _ = self.encoder(embed_seq)
         encoded_seq = torch.cat([embed_seq, encoded_seq], dim=-1)
-        encoded_seq = torch.relu(encoded_seq)
 
         if labels is None:
             self._if_infer = True
