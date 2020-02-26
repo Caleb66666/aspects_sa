@@ -231,7 +231,7 @@ class BaseLoader(object):
         with codecs.open(sw_file, "r", encoding="utf-8") as rfd:
             for line in rfd:
                 stop_words.add(line.strip())
-        stop_words.update([' ', '\xa0', '\n', '\ufeff', '\r'])
+        stop_words.update([' ', '\xa0'])
         return stop_words
 
     @staticmethod
