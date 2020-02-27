@@ -129,7 +129,6 @@ class WordCharEmbeddingWithCnn(nn.Module):
             char_embed.append(pooled_cnn)
         char_embed = torch.cat(char_embed, dim=-1)
         char_embed = char_embed.view(batch_size, max_seq, -1)
-        print(char_embed.size())
         return char_embed
 
     def forward(self, word_idx, char_idx):
@@ -148,9 +147,10 @@ class WordCharEmbeddingWithCnn(nn.Module):
 
 class WordCharEmbeddingWithRnn(nn.Module):
     def __init__(self, word_vocab_size, word_embed_size, char_vocab_size, char_embed_size, rnn_hidden_size,
-                 rnn_layers=1, bidirectional=True, positional_encoding=False, fusion_method="cat"):
+                 rnn_layers=1, bidirectional=True, positional_encoding=False, fusion_method="cat", max_seq=512):
         super().__init__()
         self.positional_encoding = positional_encoding
+        self.max_seq = max_seq
 
         self.word_embed_size = word_embed_size
         self.word_embedding = nn.Embedding(word_vocab_size, self.word_embed_size)
@@ -168,10 +168,25 @@ class WordCharEmbeddingWithRnn(nn.Module):
 
         if fusion_method.lower() == "cat":
             self.fusion_model = Concat()
+            self.embed_size = self.word_embed_size + char_hidden_size
         elif fusion_method.lower() == "sfu":
             self.fusion_model = BasicSfu(self.word_embed_size, char_hidden_size)
+            self.embed_size = self.word_embed_size
         else:
             raise TypeError(f"bad fusion method: {fusion_method}")
+
+        if self.positional_encoding:
+            self.positional_embed = self.make_positional_encoding(self.embed_size, max_seq=self.max_seq)
+
+    @staticmethod
+    def make_positional_encoding(embed_size, max_seq):
+        pe = torch.arange(0, max_seq).unsqueeze(1).expand(max_seq, embed_size).contiguous()
+        div_term = torch.pow(10000, torch.arange(0, embed_size * 2, 2) / embed_size)
+        pe /= div_term
+        pe = pe.float()
+        pe[:, 0::2] = torch.sin(pe[:, 0::2])
+        pe[:, 1::2] = torch.cos(pe[:, 1::2])
+        return pe
 
     def obtain_word_embed(self, word_idx):
         return self.word_embedding(word_idx)
@@ -195,6 +210,9 @@ class WordCharEmbeddingWithRnn(nn.Module):
         word_embed = self.obtain_word_embed(word_idx)  # batch_size, max_seq, word_embed_size
         char_embed = self.obtain_char_embed(char_idx)  # batch_size, max_seq, 2 * char_hidden_size
         embedding = self.fusion_model(word_embed, char_embed)
+        if self.positional_encoding:
+            positional_vector = nn.Parameter(self.positional_embed[:self.max_seq], requires_grad=True)
+            embedding += positional_vector
         return embedding
 
 

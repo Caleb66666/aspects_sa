@@ -23,6 +23,7 @@ class TestWordCharEmbeddingWithRnnClass(unittest.TestCase):
         self.rnn_hidden_size = 19
         self.fusion_method = "cat"
         self.char_bidirectional = True
+        self.positional_encoding = True
 
         self.words_idx, self.chars_idx, self.words_vocab_size, self.chars_vocab_size = self.gen_test_env()
         self.embedding = WordCharEmbeddingWithRnn(
@@ -32,7 +33,9 @@ class TestWordCharEmbeddingWithRnnClass(unittest.TestCase):
             char_embed_size=self.char_embed_size,
             rnn_hidden_size=self.rnn_hidden_size,
             bidirectional=self.char_bidirectional,
+            positional_encoding=self.positional_encoding,
             fusion_method=self.fusion_method,
+            max_seq=self.max_seq
         )
 
     def gen_test_env(self):
