@@ -10,7 +10,7 @@ from data_loader.transfer_loader import TrainLoader
 from utils.path_util import abspath
 from custom_modules.albert import AlbertModel
 from custom_modules.attention import SelfAttnMatch
-from custom_modules.fusions import SFU
+from custom_modules.fusions import BasicSfu, SfuCombiner
 
 
 class Config(BaseConfig):
@@ -49,7 +49,7 @@ class Config(BaseConfig):
 
         # batch化相关
         self.sort_within_batch = False
-        self.batch_size = 64
+        self.batch_size = 32
 
         # 模型结构相关
         self.hidden_dim = 256
@@ -65,11 +65,11 @@ class Config(BaseConfig):
         self.warm_up_proportion = 0.1
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
-        self.schedule_per_batches = 200
+        self.schedule_per_batches = 400
 
         # 训练时验证相关
         self.improve_require = 50000
-        self.eval_per_batches = 200
+        self.eval_per_batches = 400
         self.f1_average = "macro"
 
         # 待计算赋值的全局变量
@@ -116,7 +116,7 @@ class Model(nn.Module):
 
         # 特征表征结构
         self.self_attn = SelfAttnMatch(config.hidden_dim * 2)
-        self.fusion_model = SFU(config.hidden_dim * 2, config.hidden_dim * 2)
+        self.fusion_model = SfuCombiner(config.hidden_dim * 2, config.hidden_dim * 2)
 
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
