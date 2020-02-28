@@ -17,13 +17,13 @@ from allennlp.nn.util import masked_softmax
 
 
 class BaseConfig(object):
-    def __init__(self, name, debug, seed):
+    def __init__(self, name, debug):
+        self.name = name
+        self.debug = debug
+
         # 训练设备设置
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gpu = torch.cuda.device_count()
-
-        # 设置随机种子
-        self.set_seed(seed)
 
         # data-loader，处理完的数据序列化的位置，不需要再次初始化、预处理、分词、word-piece、sentence-piece等操作
         self.dl_path = abspath(f"data/{name}.pt")
@@ -57,14 +57,20 @@ class BaseConfig(object):
             os.makedirs(self.w2v_dir)
         self.w2v_path = os.path.join(self.w2v_dir, f"{name}.w2v.txt")
 
-        # 设置debug模式
-        if debug:
-            self.epochs = 1
-            self.batch_size = 2
-            self.dl_path = abspath(f"data/{name}.debug.pt")
-            self.logger_file = os.path.join(self.logger_dir, "{}.debug.log")
-            self.model_ckpt = os.path.join(self.model_dir, "{}.debug.ckpt")
-            self.w2v_path = os.path.join(self.w2v_dir, f"{name}.debug.w2v.txt")
+        self.epochs = None
+        self.batch_size = None
+        self.word_w2v = None
+        self.char_w2v = None
+
+    def debug_set(self):
+        self.epochs = 1
+        self.batch_size = 2
+        self.dl_path = abspath(f"data/{self.name}.debug.pt")
+        self.logger_file = os.path.join(self.logger_dir, "{}.debug.log")
+        self.model_ckpt = os.path.join(self.model_dir, "{}.debug.ckpt")
+        self.w2v_path = os.path.join(self.w2v_dir, f"{self.name}.debug.w2v.txt")
+        self.word_w2v = os.path.join(self.w2v_dir, f"{self.name}.debug.word.w2v.txt")
+        self.char_w2v = os.path.join(self.w2v_dir, f"{self.name}.debug.char.w2v.txt")
 
     def set_seed(self, seed):
         random.seed(seed)

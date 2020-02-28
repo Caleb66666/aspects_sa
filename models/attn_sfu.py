@@ -15,9 +15,9 @@ from custom_modules.fusions import BasicSfu, SfuCombiner
 
 class Config(BaseConfig):
     def __init__(self, debug=False):
-        self.name = os.path.basename(__file__).split(".")[0]
-        self.debug = debug
+        super(Config, self).__init__(os.path.basename(__file__).split(".")[0], debug)
         self.seed = 279
+        self.set_seed(self.seed)
 
         # 需要并行时设置并行数
         self.nb_workers = 4
@@ -78,7 +78,8 @@ class Config(BaseConfig):
         self.num_labels = None
         self.embed_matrix = None
 
-        super(Config, self).__init__(self.name, self.debug, self.seed)
+        if self.debug:
+            self.debug_set()
 
     def build_optimizer_scheduler(self, model, train_batches_len, **kwargs):
         return super(Config, self).build_optimizer_scheduler(
