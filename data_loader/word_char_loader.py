@@ -6,6 +6,7 @@
 import os
 from data_loader.base_loader import BaseLoader
 from utils.path_util import serialize, deserialize, np_serialize, np_deserialize
+from utils.time_util import timer
 
 
 class TrainLoader(BaseLoader):
@@ -49,6 +50,7 @@ class TrainLoader(BaseLoader):
         config.word_vocab_size = len(word_tokenizer.word2index)
         config.char_vocab_size = len(char_tokenizer.word2index)
 
+    @timer
     def workflow(self):
         train_df, valid_df = self.read_raw(
             files=(self.config.train_file, self.config.valid_file),
