@@ -6,6 +6,7 @@
 import os
 from data_loader.base_loader import BaseLoader
 from utils.path_util import serialize, deserialize
+import numpy as np
 
 
 class TrainLoader(BaseLoader):
@@ -22,9 +23,13 @@ class TrainLoader(BaseLoader):
         self.config = config
 
         if os.path.exists(self.config.dl_path):
-            train_df, valid_df, fields, label_field, columns, word_embed, char_embed, word_vocab_size, char_vocab_size = deserialize(self.config.dl_path)
+            train_df, valid_df, fields, label_field, columns, word_vocab_size, char_vocab_size = deserialize(
+                self.config.dl_path)
+            word_embed = np.load(f"{self.config.word_embed_path}.npy")
+            char_embed = np.load(f"{self.config.char_embed_path}.npy")
         else:
-            train_df, valid_df, fields, label_field, columns, word_embed, char_embed, word_vocab_size, char_vocab_size = self.workflow()
+            train_df, valid_df, fields, label_field, columns, word_embed, char_embed, word_vocab_size, char_vocab_size \
+                = self.workflow()
 
         self.train_batches, self.valid_batches = self.batch_data(
             train_df=train_df,
@@ -163,7 +168,10 @@ class TrainLoader(BaseLoader):
             inf_mask_col=self.inf_mask_col
         )
 
-        target_obj = (train_df, valid_df, fields, label_field, columns, word_embed, char_embed,
-                      len(word_tokenizer.word2index), len(char_tokenizer.word2index))
+        target_obj = (train_df, valid_df, fields, label_field, columns, len(word_tokenizer.word2index),
+                      len(char_tokenizer.word2index))
+        np.save(self.config.word_embed_path, word_embed)
+        np.save(self.config.char_embed_path, char_embed)
         serialize(self.config.dl_path, target_obj)
-        return target_obj
+        return train_df, valid_df, fields, label_field, columns, word_embed, char_embed, len(
+            word_tokenizer.word2index), len(char_tokenizer.word2index)
