@@ -6,6 +6,7 @@
 import torch
 from torch import nn
 from custom_modules.fusions import Highway, SfuCombiner, BasicSfu, Concat
+from torch.autograd import Variable
 
 
 class Squeezer(nn.Module):
@@ -87,6 +88,7 @@ class WordCharEmbeddingWithCnn(nn.Module):
                  max_seq=1000, highway_layers=3, positional_encoding=False):
         super().__init__()
         self.positional_encoding = positional_encoding
+        self.max_seq = max_seq
 
         self.word_embed_size = word_embed_size
         self.word_embedding = nn.Embedding(word_vocab_size, self.word_embed_size)
@@ -104,9 +106,9 @@ class WordCharEmbeddingWithCnn(nn.Module):
 
     @staticmethod
     def make_positional_encoding(embed_size, max_seq):
-        pe = torch.arange(0, max_seq).unsqueeze(1).expand(max_seq, embed_size)
+        pe = torch.arange(0, max_seq).unsqueeze(1).expand(max_seq, embed_size).contiguous()
         div_term = torch.pow(10000, torch.arange(0, embed_size * 2, 2) / embed_size)
-        pe /= div_term
+        pe = (pe / div_term).float()
         pe[:, 0::2] = torch.sin(pe[:, 0::2])
         pe[:, 1::2] = torch.cos(pe[:, 1::2])
         return pe
@@ -139,7 +141,8 @@ class WordCharEmbeddingWithCnn(nn.Module):
         embedding = self.highway(torch.cat([word_embed, char_embed], dim=-1))
 
         if self.positional_encoding:
-            positional_vector = nn.Parameter(self.positional_embed[:self.max_seq], requires_grad=True)
+            # positional_vector = nn.Parameter(self.positional_embed[:self.max_seq], requires_grad=True)
+            positional_vector = Variable(self.positional_embed[:self.max_seq])
             embedding += positional_vector
 
         return embedding
@@ -182,8 +185,7 @@ class WordCharEmbeddingWithRnn(nn.Module):
     def make_positional_encoding(embed_size, max_seq):
         pe = torch.arange(0, max_seq).unsqueeze(1).expand(max_seq, embed_size).contiguous()
         div_term = torch.pow(10000, torch.arange(0, embed_size * 2, 2) / embed_size)
-        pe /= div_term
-        pe = pe.float()
+        pe = (pe / div_term).float()
         pe[:, 0::2] = torch.sin(pe[:, 0::2])
         pe[:, 1::2] = torch.cos(pe[:, 1::2])
         return pe
@@ -211,7 +213,8 @@ class WordCharEmbeddingWithRnn(nn.Module):
         char_embed = self.obtain_char_embed(char_idx)  # batch_size, max_seq, 2 * char_hidden_size
         embedding = self.fusion_model(word_embed, char_embed)
         if self.positional_encoding:
-            positional_vector = nn.Parameter(self.positional_embed[:self.max_seq], requires_grad=True)
+            # positional_vector = nn.Parameter(self.positional_embed[:self.max_seq], requires_grad=True)
+            positional_vector = Variable(self.positional_embed[:self.max_seq])
             embedding += positional_vector
         return embedding
 
