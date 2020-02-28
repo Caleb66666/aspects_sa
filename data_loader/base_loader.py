@@ -331,6 +331,8 @@ class BaseLoader(object):
             seq_ids = self.truncate_single(seq_ids, max_seq, method=truncate_method)
         char_ids = np.zeros([len(seq_ids), char_limit], dtype=np.int32)
         for i, chars in enumerate(words_chars):
+            if i >= max_seq:
+                break
             for j, char in enumerate(chars):
                 if j >= char_limit:
                     break
