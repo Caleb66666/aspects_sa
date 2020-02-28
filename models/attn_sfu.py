@@ -36,7 +36,7 @@ class Config(BaseConfig):
         self.if_lower = True
 
         # 分词、索引相关
-        self.stop_dict = abspath("library/stop_symbols.txt")
+        self.stop_dict = abspath("library/stop_symbols.dict")
         if debug:
             self.transfer_path = "/Users/Vander/Code/pytorch_col/albert-base-chinese"
         else:

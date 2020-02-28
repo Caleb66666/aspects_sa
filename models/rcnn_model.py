@@ -27,19 +27,19 @@ class Config(BaseConfig):
         self.premise = "content"
         self.hypothesis = None
         self.shuffle = True
-        self.max_seq = 1000
         self.header = 0
         self.sep = ","
         self.encoding = "utf-8"
         self.if_lower = True
 
-        # 分词相关
-        self.stop_dict = abspath("library/stopwords.dict")
+        # 分词相关、向量化
+        self.max_seq = 1000
+        self.stop_dict = abspath("library/stop_symbols.dict")
         self.max_vocab = 20000
-        self.pad_id = 0
         self.pad_token = "<pad>"
-        self.unk_id = 1
         self.unk_token = "<unk>"
+        self.tokenize_method = "char"
+        self.truncate_method = "head"
 
         # 词嵌入相关
         self.embed_dim = 128
@@ -109,7 +109,7 @@ class Model(nn.Module):
         self.tokens_embedding.weight.requires_grad = True
 
         self.encoder = nn.LSTM(config.embed_dim, hidden_size=config.hidden_dim, bias=True, batch_first=True,
-                               bidirectional=self.bidirectional, num_layers=self.num_layers)
+                               bidirectional=config.bidirectional, num_layers=config.num_layers)
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(
