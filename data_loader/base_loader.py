@@ -25,6 +25,7 @@ class BaseTokenizer(object):
     """
     负责分词、建立词典、转换word/index、去停用词
     """
+
     def __init__(self, max_vocab=None, pad_token="<pad>", unk_token="<unk>", pad_id=0, unk_id=1,
                  tokenize_method="char", user_dict=None):
         self.max_vocab = max_vocab
@@ -404,6 +405,21 @@ class BaseLoader(object):
             if column in (ids_column, len_column, mask_column):
                 fields.append((column, long_field))
             elif column in (inf_mask_column,):
+                fields.append((column, float_field))
+            else:
+                fields.append((column, label_field))
+        return long_field, float_field, label_field, fields
+
+    @staticmethod
+    def prepare_fields_word_char(columns, word_ids_col, char_ids_col, len_col, mask_col, inf_mask_col):
+        long_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.long)
+        float_field = Field(sequential=False, use_vocab=False, batch_first=True, dtype=torch.float)
+        label_field = LabelField(sequential=False, use_vocab=True, batch_first=True)
+        fields = list()
+        for column in columns:
+            if column in (word_ids_col, char_ids_col, len_col, mask_col):
+                fields.append((column, long_field))
+            elif column in (inf_mask_col,):
                 fields.append((column, float_field))
             else:
                 fields.append((column, label_field))
