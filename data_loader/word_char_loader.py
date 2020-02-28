@@ -22,11 +22,9 @@ class TrainLoader(BaseLoader):
         self.config = config
 
         if os.path.exists(self.config.dl_path):
-            train_df, valid_df, fields, label_field, columns, word_embed, char_embed, word_tokenizer, char_tokenizer = \
-                deserialize(self.config.dl_path)
+            train_df, valid_df, fields, label_field, columns, word_embed, char_embed, word_vocab_size, char_vocab_size = deserialize(self.config.dl_path)
         else:
-            train_df, valid_df, fields, label_field, columns, word_embed, char_embed, word_tokenizer, char_tokenizer = \
-                self.workflow()
+            train_df, valid_df, fields, label_field, columns, word_embed, char_embed, word_vocab_size, char_vocab_size = self.workflow()
 
         self.train_batches, self.valid_batches = self.batch_data(
             train_df=train_df,
@@ -46,8 +44,8 @@ class TrainLoader(BaseLoader):
         config.char_embed = char_embed
         config.feature_cols = [self.word_ids_col, self.char_ids_col, self.len_col, self.mask_col, self.inf_mask_col]
         config.num_labels = len(columns) - len(config.feature_cols)
-        config.word_vocab_size = len(word_tokenizer.word2index)
-        config.char_vocab_size = len(char_tokenizer.word2index)
+        config.word_vocab_size = word_vocab_size
+        config.char_vocab_size = char_vocab_size
 
     def workflow(self):
         train_df, valid_df = self.read_raw(
@@ -166,6 +164,6 @@ class TrainLoader(BaseLoader):
         )
 
         target_obj = (train_df, valid_df, fields, label_field, columns, word_embed, char_embed,
-                      word_tokenizer, char_tokenizer)
+                      len(word_tokenizer.word2index), len(char_tokenizer.word2index))
         serialize(self.config.dl_path, target_obj)
         return target_obj
