@@ -25,9 +25,8 @@ class BaseTokenizer(object):
     """
     负责分词、建立词典、转换word/index、去停用词
     """
-
     def __init__(self, max_vocab=None, pad_token="<pad>", unk_token="<unk>", pad_id=0, unk_id=1,
-                 tokenize_method="char", user_dict=None):
+                 tokenize_method="char", user_dict=None, min_count=None):
         self.max_vocab = max_vocab
         self.pad_token = pad_token
         self.unk_token = unk_token
@@ -35,6 +34,7 @@ class BaseTokenizer(object):
         self.unk_id = unk_id
         self.word2index = {pad_token: pad_id, unk_token: unk_id}
         self.index2word = {pad_id: pad_token, unk_id: unk_token}
+        self.min_count = min_count
 
         if tokenize_method.lower() == "char":
             self.tokenize_method = self.char_tokenize
@@ -58,19 +58,27 @@ class BaseTokenizer(object):
         tokens = self.tokenize_method(sent)
         return tokens
 
+    def convert_token_to_id(self, token):
+        if token in self.word2index:
+            return self.word2index[token]
+        return self.unk_id
+
     def convert_tokens_to_ids(self, tokens):
-        idx_list = list()
-        for token in tokens:
-            if token in self.word2index:
-                idx_list.append(self.word2index[token])
-            else:
-                idx_list.append(self.unk_id)
+        idx_list = [self.convert_token_to_id(token) for token in tokens]
         return idx_list
+
+    @staticmethod
+    def rm_min_count(counter, min_count):
+        return Counter(dict(filter(lambda item: item[1] >= min_count, counter.items())))
 
     def build_vocab(self, *args):
         tokens_counter = Counter()
         for tokens_list in args:
             [tokens_counter.update(tokens) for tokens in tokens_list]
+
+        if self.min_count is not None:
+            tokens_counter = self.rm_min_count(tokens_counter, self.min_count)
+
         if self.max_vocab is not None:
             vocab = tokens_counter.most_common(self.max_vocab)
         else:
@@ -173,9 +181,9 @@ class BaseLoader(object):
         :return:
         """
         if not torch.is_tensor(ids):
-            return [float("-inf") if ele == 0 else 0.0 for ele in ids]
+            return np.array([float("-inf") if ele == 0 else 0.0 for ele in ids], dtype=np.float)
         mask = ids.eq(0)
-        return torch.masked_fill(mask.float(), mask, float("-inf"))
+        return torch.masked_fill(mask.float(), mask, float("-inf")).numpy()
 
     @staticmethod
     def random_embed_vector(embed_dim):
@@ -250,14 +258,15 @@ class BaseLoader(object):
 
     def tokenize_and_stop_symbols(self, train_df, valid_df, debug, tokenizer=None, max_vocab=None, pad_token=None,
                                   unk_token=None, tokenize_method="char", stop_symbols_file=None, premise="content",
-                                  tokens_col="tokens", user_dict=None):
+                                  tokens_col="tokens", user_dict=None, min_count=None):
         if tokenizer is None:
             tokenizer = BaseTokenizer(
                 max_vocab=max_vocab,
                 pad_token=pad_token,
                 unk_token=unk_token,
                 tokenize_method=tokenize_method,
-                user_dict=user_dict
+                user_dict=user_dict,
+                min_count=min_count
             )
             if_custom = True
         else:
@@ -293,9 +302,8 @@ class BaseLoader(object):
             seq_len = max_seq
             seq_mask = [1] * max_seq
             seq_ids = self.truncate_single(seq_ids, max_seq, method=truncate_method)
-        inf_mask = self.calc_inf_mask(seq_ids)
-        seq_ids = np.array(seq_ids, dtype=np.int32)
-        return seq_ids, seq_len, seq_mask, inf_mask
+        return np.array(seq_ids, dtype=np.int32), np.array(seq_len, dtype=np.int32), \
+               np.array(seq_mask, dtype=np.int32), self.calc_inf_mask(seq_ids)
 
     def index_pad_truncate(self, train_df, valid_df, debug, max_seq, tokenizer, tokens_col="tokens", ids_col="seq_ids",
                            len_col="seq_len", mask_col="seq_mask", inf_mask_col="inf_mask", truncate_method="head"):
@@ -311,25 +319,24 @@ class BaseLoader(object):
 
     def _index_pad_truncate_word_char(self, word_tokenizer, char_tokenizer, words, max_seq, char_limit,
                                       truncate_method="head"):
-        chars = [list(word) for word in words]
-        word_ids = [word_tokenizer.convert_tokens_to_ids(word) for word in words]
-        if len(word_ids) < max_seq:
-            seq_len = len(word_ids)
-            seq_mask = [1] * len(word_ids) + [0] * (max_seq - len(word_ids))
-            word_ids = word_ids + [0] * (max_seq - len(word_ids))
+        words_chars = [list(word) for word in words]
+        seq_ids = word_tokenizer.convert_tokens_to_ids(words)
+        if len(seq_ids) < max_seq:
+            seq_len = len(seq_ids)
+            seq_mask = [1] * len(seq_ids) + [0] * (max_seq - len(seq_ids))
+            seq_ids = seq_ids + [0] * (max_seq - len(seq_ids))
         else:
             seq_len = max_seq
             seq_mask = [1] * max_seq
-            word_ids = self.truncate_single(word_ids, max_seq, method=truncate_method)
-        char_ids = np.zeros([len(word_ids), char_limit], dtype=np.int32)
-        for i, tokens in enumerate(chars):
-            for j, char in enumerate(tokens):
+            seq_ids = self.truncate_single(seq_ids, max_seq, method=truncate_method)
+        char_ids = np.zeros([len(seq_ids), char_limit], dtype=np.int32)
+        for i, chars in enumerate(words_chars):
+            for j, char in enumerate(chars):
                 if j >= char_limit:
                     break
-                char_ids[i, j] = char_tokenizer.convert_tokens_to_ids(char)
-        inf_mask = self.calc_inf_mask(word_ids)
-        word_ids = np.array(word_ids, dtype=np.int32)
-        return word_ids, char_ids, seq_len, seq_mask, inf_mask
+                char_ids[i, j] = char_tokenizer.convert_token_to_id(char)
+        return np.array(seq_ids, dtype=np.int32), char_ids.reshape(-1), np.array(seq_len, dtype=np.int32), \
+               np.array(seq_mask, dtype=np.int32), self.calc_inf_mask(seq_ids)
 
     def index_pad_truncate_word_char(self, train_df, valid_df, debug, max_seq, word_tokenizer, char_tokenizer,
                                      word_col="word_tokens", word_ids_col="word_ids", char_ids_col="char_ids",
