@@ -7,6 +7,7 @@
 
 import os
 import dill
+import numpy as np
 
 
 def get_project_root(symbol="utils"):
@@ -64,6 +65,14 @@ def newest_file(target_dir):
         time_sort_files.append((abspath_file, c_time))
     time_sort_files = list(sorted(time_sort_files, key=lambda item: item[1], reverse=True))
     return time_sort_files[0][0]
+
+
+def np_serialize(save_path, np_obj):
+    np.save(save_path, np_obj)
+
+
+def np_deserialize(save_path):
+    return np.load(f"{save_path}.npy")
 
 
 if __name__ == '__main__':

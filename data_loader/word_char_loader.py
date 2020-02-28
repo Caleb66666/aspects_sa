@@ -5,8 +5,7 @@
 
 import os
 from data_loader.base_loader import BaseLoader
-from utils.path_util import serialize, deserialize
-import numpy as np
+from utils.path_util import serialize, deserialize, np_serialize, np_deserialize
 
 
 class TrainLoader(BaseLoader):
@@ -22,14 +21,12 @@ class TrainLoader(BaseLoader):
         super(TrainLoader, self).__init__(config.nb_workers)
         self.config = config
 
-        if os.path.exists(self.config.dl_path):
-            train_df, valid_df, fields, label_field, columns, word_vocab_size, char_vocab_size = deserialize(
-                self.config.dl_path)
-            word_embed = np.load(f"{self.config.word_embed_path}.npy")
-            char_embed = np.load(f"{self.config.char_embed_path}.npy")
-        else:
-            train_df, valid_df, fields, label_field, columns, word_embed, char_embed, word_vocab_size, char_vocab_size \
-                = self.workflow()
+        if not os.path.exists(self.config.dl_path):
+            self.workflow()
+
+        train_df, valid_df, fields, label_field, columns, word_tokenizer, char_tokenizer = deserialize(config.dl_path)
+        word_embed = np_deserialize(self.config.word_embed_path)
+        char_embed = np_deserialize(self.config.char_embed_path)
 
         self.train_batches, self.valid_batches = self.batch_data(
             train_df=train_df,
@@ -49,8 +46,8 @@ class TrainLoader(BaseLoader):
         config.char_embed = char_embed
         config.feature_cols = [self.word_ids_col, self.char_ids_col, self.len_col, self.mask_col, self.inf_mask_col]
         config.num_labels = len(columns) - len(config.feature_cols)
-        config.word_vocab_size = word_vocab_size
-        config.char_vocab_size = char_vocab_size
+        config.word_vocab_size = len(word_tokenizer.word2index)
+        config.char_vocab_size = len(char_tokenizer.word2index)
 
     def workflow(self):
         train_df, valid_df = self.read_raw(
@@ -168,10 +165,7 @@ class TrainLoader(BaseLoader):
             inf_mask_col=self.inf_mask_col
         )
 
-        target_obj = (train_df, valid_df, fields, label_field, columns, len(word_tokenizer.word2index),
-                      len(char_tokenizer.word2index))
-        np.save(self.config.word_embed_path, word_embed)
-        np.save(self.config.char_embed_path, char_embed)
+        target_obj = (train_df, valid_df, fields, label_field, columns, word_tokenizer, char_tokenizer)
         serialize(self.config.dl_path, target_obj)
-        return train_df, valid_df, fields, label_field, columns, word_embed, char_embed, len(
-            word_tokenizer.word2index), len(char_tokenizer.word2index)
+        np_serialize(self.config.word_embed_path, word_embed)
+        np_serialize(self.config.char_embed_path, char_embed)
