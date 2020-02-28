@@ -25,8 +25,12 @@ class BaseConfig(object):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gpu = torch.cuda.device_count()
 
+        self.data_cache = abspath(f"data/{name}")
+        if not os.path.exists(self.data_cache):
+            os.makedirs(self.data_cache)
+
         # data-loader，处理完的数据序列化的位置，不需要再次初始化、预处理、分词、word-piece、sentence-piece等操作
-        self.dl_path = abspath(f"data/{name}.pt")
+        self.dl_path = os.path.join(self.data_cache, "dl.pt")
 
         # 存储模型位置设置，使用时间戳进行模型的命名
         self.model_dir = abspath(f"checkpoints/{name}")
@@ -52,25 +56,26 @@ class BaseConfig(object):
         self.default_scale = 1
 
         # 词嵌入相关
-        self.w2v_dir = abspath(f"library/{name}")
-        if not os.path.exists(self.w2v_dir):
-            os.makedirs(self.w2v_dir)
-        self.w2v_path = os.path.join(self.w2v_dir, f"{name}.w2v.txt")
+        self.w2v_path = os.path.join(self.data_cache, f"w2v.txt")
 
         self.epochs = None
         self.batch_size = None
         self.word_w2v = None
         self.char_w2v = None
+        self.word_embed_path = None
+        self.char_embed_path = None
 
     def debug_set(self):
         self.epochs = 1
         self.batch_size = 2
-        self.dl_path = abspath(f"data/{self.name}.debug.pt")
+        self.dl_path = os.path.join(self.data_cache, "debug.dl.pt")
         self.logger_file = os.path.join(self.logger_dir, "{}.debug.log")
         self.model_ckpt = os.path.join(self.model_dir, "{}.debug.ckpt")
-        self.w2v_path = os.path.join(self.w2v_dir, f"{self.name}.debug.w2v.txt")
-        self.word_w2v = os.path.join(self.w2v_dir, f"{self.name}.debug.word.w2v.txt")
-        self.char_w2v = os.path.join(self.w2v_dir, f"{self.name}.debug.char.w2v.txt")
+        self.w2v_path = os.path.join(self.data_cache, f"debug.w2v.txt")
+        self.word_w2v = os.path.join(self.data_cache, f"debug.word.w2v.txt")
+        self.char_w2v = os.path.join(self.data_cache, f"debug.char.w2v.txt")
+        self.word_embed_path = os.path.join(self.data_cache, f"debug.word.embed.matrix")
+        self.char_embed_path = os.path.join(self.data_cache, f"debug.char.embed.matrix")
 
     def set_seed(self, seed):
         random.seed(seed)
