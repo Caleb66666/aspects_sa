@@ -96,7 +96,9 @@ class WordCharEmbeddingWithCnn(nn.Module):
         self.char_embed_size = char_embed_size
         self.char_embedding = nn.Embedding(char_vocab_size, self.char_embed_size)
         self.char_vec_dim = n_channel * len(kernel_sizes)
-        self.cnn_list = nn.ModuleList([nn.Conv2d(1, n_channel, [ks, self.char_embed_size]) for ks in kernel_sizes])
+        self.conv_list = nn.ModuleList([nn.Conv2d(1, n_channel, [ks, self.char_embed_size]) for ks in kernel_sizes])
+        self.cnn_bn = nn.BatchNorm1d(n_channel)
+        self.cnn_activate = nn.ReLU()
 
         self.embed_size = self.word_embed_size + self.char_vec_dim
         self.highway = Highway(self.embed_size, num_layers=highway_layers)
@@ -125,8 +127,10 @@ class WordCharEmbeddingWithCnn(nn.Module):
         char_idx = char_idx.view(-1, char_idx.size(2))
         raw_char_embed = self.char_embedding(char_idx).unsqueeze(1)
         char_embed = []
-        for cnn_unit in self.cnn_list:
-            cnn_raw_embed = cnn_unit(raw_char_embed).squeeze(-1)
+        for conv in self.conv_list:
+            cnn_raw_embed = conv(raw_char_embed).squeeze(-1)
+            cnn_raw_embed = self.cnn_bn(cnn_raw_embed)
+            cnn_raw_embed = self.cnn_activate(cnn_raw_embed)
             pooled_cnn = torch.max_pool1d(cnn_raw_embed, cnn_raw_embed.size(-1)).squeeze(-1)
             char_embed.append(pooled_cnn)
         char_embed = torch.cat(char_embed, dim=-1)
