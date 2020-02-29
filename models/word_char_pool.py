@@ -49,6 +49,7 @@ class Config(BaseConfig):
         self.truncate_method = "head"
 
         # 词嵌入相关
+        self.w2v_path = os.path.join(self.data_cache, f"w2v.txt")
         self.word_w2v = os.path.join(self.data_cache, f"word.w2v.txt")
         self.word_embed_dim = 128
         self.word_window = 8

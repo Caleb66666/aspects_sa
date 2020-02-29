@@ -20,11 +20,14 @@ from sklearn.utils import shuffle as shuffle_data
 from collections import Counter
 import jieba_fast as jieba
 
+from utils.time_util import timer
+
 
 class BaseTokenizer(object):
     """
     负责分词、建立词典、转换word/index、去停用词
     """
+
     def __init__(self, max_vocab=None, pad_token="<pad>", unk_token="<unk>", pad_id=0, unk_id=1,
                  tokenize_method="char", user_dict=None, min_count=None):
         self.max_vocab = max_vocab
@@ -181,7 +184,8 @@ class BaseLoader(object):
         :return:
         """
         if not torch.is_tensor(ids):
-            return np.array([float("-inf") if ele == 0 else 0.0 for ele in ids], dtype=np.float)
+            # return np.array([float("-inf") if ele == 0 else 0.0 for ele in ids], dtype=np.float)
+            return [float("-inf") if ele == 0 else 0.0 for ele in ids]
         mask = ids.eq(0)
         return torch.masked_fill(mask.float(), mask, float("-inf")).numpy()
 
@@ -302,8 +306,7 @@ class BaseLoader(object):
             seq_len = max_seq
             seq_mask = [1] * max_seq
             seq_ids = self.truncate_single(seq_ids, max_seq, method=truncate_method)
-        return np.array(seq_ids, dtype=np.int32), np.array(seq_len, dtype=np.int32), \
-               np.array(seq_mask, dtype=np.int32), self.calc_inf_mask(seq_ids)
+        return seq_ids, seq_len, seq_mask, self.calc_inf_mask(seq_ids)
 
     def index_pad_truncate(self, train_df, valid_df, debug, max_seq, tokenizer, tokens_col="tokens", ids_col="seq_ids",
                            len_col="seq_len", mask_col="seq_mask", inf_mask_col="inf_mask", truncate_method="head"):
@@ -337,8 +340,7 @@ class BaseLoader(object):
                 if j >= char_limit:
                     break
                 char_ids[i, j] = char_tokenizer.convert_token_to_id(char)
-        return np.array(seq_ids, dtype=np.int32), char_ids.reshape(-1), np.array(seq_len, dtype=np.int32), \
-               np.array(seq_mask, dtype=np.int32), self.calc_inf_mask(seq_ids)
+        return seq_ids, char_ids.reshape(-1).tolist(), seq_len, seq_mask, self.calc_inf_mask(seq_ids)
 
     def index_pad_truncate_word_char(self, train_df, valid_df, debug, max_seq, word_tokenizer, char_tokenizer,
                                      word_col="word_tokens", word_ids_col="word_ids", char_ids_col="char_ids",
@@ -438,6 +440,21 @@ class BaseLoader(object):
                    build_vocab_field):
         train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
         build_vocab_field.build_vocab(train_ds)
+        train_iter, valid_iter = BucketIterator.splits(
+            (train_ds, valid_ds),
+            batch_size=batch_size,
+            device=device,
+            sort_within_batch=sort_within_batch,
+            sort=False,
+            sort_key=lambda sample: getattr(sample, len_column),
+            repeat=False
+        )
+        train_batches = BatchWrapper(train_iter, columns, len(train_ds))
+        valid_batches = BatchWrapper(valid_iter, columns, len(valid_ds))
+        return train_batches, valid_batches
+
+    @staticmethod
+    def new_batch_data(train_ds, valid_ds, columns, batch_size, device, sort_within_batch, len_column):
         train_iter, valid_iter = BucketIterator.splits(
             (train_ds, valid_ds),
             batch_size=batch_size,

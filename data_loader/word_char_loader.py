@@ -4,7 +4,7 @@
 # @time: 2020/2/27 19:37:51
 
 import os
-from data_loader.base_loader import BaseLoader
+from data_loader.base_loader import BaseLoader, Dataset
 from utils.path_util import serialize, deserialize, np_serialize, np_deserialize
 from utils.time_util import timer
 
@@ -25,23 +25,18 @@ class TrainLoader(BaseLoader):
         if not os.path.exists(self.config.dl_path):
             self.workflow()
 
-        train_df, valid_df, fields, label_field, columns, word_tokenizer, char_tokenizer = deserialize(config.dl_path)
-        word_embed = np_deserialize(self.config.word_embed_path)
-        char_embed = np_deserialize(self.config.char_embed_path)
-
-        self.train_batches, self.valid_batches = self.batch_data(
-            train_df=train_df,
-            valid_df=valid_df,
-            fields=fields,
+        train_ds, valid_ds, label_vocab, columns, word_tokenizer, char_tokenizer, word_embed, char_embed = self.load()
+        self.train_batches, self.valid_batches = self.new_batch_data(
+            train_ds=train_ds,
+            valid_ds=valid_ds,
             columns=columns,
             batch_size=self.config.batch_size,
             device=self.config.device,
             sort_within_batch=self.config.sort_within_batch,
             len_column=self.len_col,
-            build_vocab_field=label_field,
         )
 
-        config.classes = list(label_field.vocab.stoi.values())
+        config.classes = list(label_vocab.stoi.values())
         config.num_classes = len(config.classes)
         config.word_embed = word_embed
         config.char_embed = char_embed
@@ -61,7 +56,6 @@ class TrainLoader(BaseLoader):
             seed=self.config.seed,
             encoding=self.config.encoding
         )
-
         train_df, valid_df = self.pretreatment_text(
             train_df=train_df,
             valid_df=valid_df,
@@ -156,6 +150,7 @@ class TrainLoader(BaseLoader):
             debug=self.config.debug,
             dropped_columns=["id", self.config.premise, self.word_tokens_col, self.char_tokens_col]
         )
+        print("train df: ", train_df["location_traffic_convenience"][0])
 
         columns = train_df.columns.tolist()
         long_field, float_field, label_field, fields = self.prepare_fields_word_char(
@@ -167,7 +162,26 @@ class TrainLoader(BaseLoader):
             inf_mask_col=self.inf_mask_col
         )
 
-        target_obj = (train_df, valid_df, fields, label_field, columns, word_tokenizer, char_tokenizer)
+        train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
+        print(f"train ds: {train_ds.examples[0].location_traffic_convenience}")
+        label_field.build_vocab(train_ds)
+        self.save(train_ds, valid_ds, fields, label_field, columns, word_tokenizer, char_tokenizer, word_embed,
+                  char_embed)
+
+    def save(self, train_ds, valid_ds, fields, label_field, columns, word_tokenizer, char_tokenizer, word_embed,
+             char_embed):
+        target_obj = (train_ds.examples, valid_ds.examples, fields, label_field.vocab, columns, word_tokenizer,
+                      char_tokenizer)
         serialize(self.config.dl_path, target_obj)
         np_serialize(self.config.word_embed_path, word_embed)
         np_serialize(self.config.char_embed_path, char_embed)
+
+    def load(self):
+        train_examples, valid_examples, fields, label_vocab, columns, word_tokenizer, char_tokenizer = deserialize(
+            self.config.dl_path)
+
+        train_ds = Dataset(examples=train_examples, fields=fields)
+        valid_ds = Dataset(examples=valid_examples, fields=fields)
+        word_embed = np_deserialize(self.config.word_embed_path)
+        char_embed = np_deserialize(self.config.char_embed_path)
+        return train_ds, valid_ds, label_vocab, columns, word_tokenizer, char_tokenizer, word_embed, char_embed
