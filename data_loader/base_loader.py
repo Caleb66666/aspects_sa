@@ -20,8 +20,6 @@ from sklearn.utils import shuffle as shuffle_data
 from collections import Counter
 import jieba_fast as jieba
 
-from utils.time_util import timer
-
 
 class BaseTokenizer(object):
     """
