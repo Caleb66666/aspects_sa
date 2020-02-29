@@ -142,7 +142,7 @@ class WordCharEmbeddingWithCnn(nn.Module):
 
         if self.positional_encoding:
             # positional_vector = nn.Parameter(self.positional_embed[:self.max_seq], requires_grad=True)
-            positional_vector = Variable(self.positional_embed[:self.max_seq])
+            positional_vector = Variable(self.positional_embed[:self.max_seq].to(word_idx.device))
             embedding += positional_vector
 
         return embedding
