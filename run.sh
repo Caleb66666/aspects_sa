@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-model=attn_sfu
+model=word_char_pool
 out=nohup.out
 if [[ ! -f "$out" ]]; then
     touch "$out"
