@@ -171,8 +171,9 @@ class Model(nn.Module):
 
         embed_seq = self.embedding(word_ids, char_ids)
         encoded_seq, _ = self.encoder(embed_seq)
-        self_attn_seq = self.self_attn(encoded_seq, seq_mask)
-        fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
+        fusion_seq = encoded_seq
+        # self_attn_seq = self.self_attn(encoded_seq, seq_mask)
+        # fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
 
         if labels is None:
             self._if_infer = True
