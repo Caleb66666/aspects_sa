@@ -65,7 +65,7 @@ class Config(BaseConfig):
         self.char_channels = 64
         self.char_ks = [2, 3]
         self.highway_layers = 3
-        self.positional_encoding = True
+        self.positional_encoding = False
 
         # batch化相关
         self.sort_within_batch = False
