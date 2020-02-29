@@ -68,11 +68,20 @@ def newest_file(target_dir):
 
 
 def np_serialize(save_path, np_obj):
-    np.save(save_path, np_obj)
+    np.save(save_path, np_obj, allow_pickle=True)
 
 
 def np_deserialize(save_path):
-    return np.load(f"{save_path}.npy")
+    return np.load(f"{save_path}.npy", allow_pickle=True)
+
+
+def nps_serialize(save_path, *args):
+    np.savez(save_path, *args)
+
+
+def nps_deserialize(save_path):
+    data = np.load(save_path, allow_pickle=True)
+    return [data[f"arr_{idx}"] for idx in range(len(data))]
 
 
 if __name__ == '__main__':

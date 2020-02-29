@@ -30,7 +30,8 @@ class BaseConfig(object):
             os.makedirs(self.data_cache)
 
         # data-loader，处理完的数据序列化的位置，不需要再次初始化、预处理、分词、word-piece、sentence-piece等操作
-        self.dl_path = os.path.join(self.data_cache, "dl.pt")
+        self.dl_path = os.path.join(self.data_cache, "parameters.pt")
+        self.processed_np = os.path.join(self.data_cache, "processed.npz")
 
         # 存储模型位置设置，使用时间戳进行模型的命名
         self.model_dir = abspath(f"checkpoints/{name}")

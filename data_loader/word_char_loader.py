@@ -1,12 +1,13 @@
-# @File: word_char_loader
+# @File: new_word_char_loader
 # @Author : Caleb
 # @Email: VanderLancer@gmail.com
-# @time: 2020/2/27 19:37:51
+# @time: 2020/2/29 15:59:28
 
 import os
-from data_loader.base_loader import BaseLoader, Dataset
-from utils.path_util import serialize, deserialize, np_serialize, np_deserialize
+from data_loader.base_loader import BaseLoader
+from utils.path_util import serialize, deserialize, nps_serialize, nps_deserialize
 from utils.time_util import timer
+import pandas as pd
 
 
 class TrainLoader(BaseLoader):
@@ -22,31 +23,10 @@ class TrainLoader(BaseLoader):
         super(TrainLoader, self).__init__(config.nb_workers)
         self.config = config
 
-        if not os.path.exists(self.config.dl_path):
-            self.workflow()
-
-        train_ds, valid_ds, label_vocab, columns, word_tokenizer, char_tokenizer, word_embed, char_embed = self.load()
-        self.train_batches, self.valid_batches = self.new_batch_data(
-            train_ds=train_ds,
-            valid_ds=valid_ds,
-            columns=columns,
-            batch_size=self.config.batch_size,
-            device=self.config.device,
-            sort_within_batch=self.config.sort_within_batch,
-            len_column=self.len_col,
-        )
-
-        config.classes = list(label_vocab.stoi.values())
-        config.num_classes = len(config.classes)
-        config.word_embed = word_embed
-        config.char_embed = char_embed
-        config.feature_cols = [self.word_ids_col, self.char_ids_col, self.len_col, self.mask_col, self.inf_mask_col]
-        config.num_labels = len(columns) - len(config.feature_cols)
-        config.word_vocab_size = len(word_tokenizer.word2index)
-        config.char_vocab_size = len(char_tokenizer.word2index)
+        self.train_batches, self.valid_batches = self.workflow()
 
     @timer
-    def workflow(self):
+    def _workflow(self):
         train_df, valid_df = self.read_raw(
             files=(self.config.train_file, self.config.valid_file),
             header=self.config.header,
@@ -150,8 +130,19 @@ class TrainLoader(BaseLoader):
             debug=self.config.debug,
             dropped_columns=["id", self.config.premise, self.word_tokens_col, self.char_tokens_col]
         )
+        serialize(self.config.dl_path, (word_tokenizer, char_tokenizer, train_df.columns.tolist()))
+        nps_serialize(self.config.processed_np, train_df.to_numpy(), valid_df.to_numpy(), word_embed, char_embed)
 
-        columns = train_df.columns.tolist()
+    def workflow(self):
+        if not os.path.exists(self.config.processed_np):
+            self._workflow()
+        word_tokenizer, char_tokenizer, columns = deserialize(self.config.dl_path)
+        train_np, valid_np, word_embed, char_embed = nps_deserialize(self.config.processed_np)
+
+        train_df = pd.DataFrame(train_np, columns=columns)
+        valid_df = pd.DataFrame(valid_np, columns=columns)
+        del train_np, valid_np
+
         long_field, float_field, label_field, fields = self.prepare_fields_word_char(
             columns=columns,
             word_ids_col=self.word_ids_col,
@@ -160,34 +151,34 @@ class TrainLoader(BaseLoader):
             mask_col=self.mask_col,
             inf_mask_col=self.inf_mask_col
         )
-
         train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
         label_field.build_vocab(train_ds)
-        self.save(train_ds, valid_ds, fields, label_field, columns, word_tokenizer, char_tokenizer, word_embed,
-                  char_embed)
-
-    def save(self, train_ds, valid_ds, fields, label_field, columns, word_tokenizer, char_tokenizer, word_embed,
-             char_embed):
-        target_obj = (train_ds.examples, valid_ds.examples, fields, label_field.vocab, columns, word_tokenizer,
-                      char_tokenizer)
-        serialize(self.config.dl_path, target_obj)
-        np_serialize(self.config.word_embed_path, word_embed)
-        np_serialize(self.config.char_embed_path, char_embed)
-
-    def load(self):
-        train_examples, valid_examples, fields, label_vocab, columns, word_tokenizer, char_tokenizer = deserialize(
-            self.config.dl_path)
-
-        train_ds = Dataset(examples=train_examples, fields=fields)
-        valid_ds = Dataset(examples=valid_examples, fields=fields)
-        word_embed = np_deserialize(self.config.word_embed_path)
-        char_embed = np_deserialize(self.config.char_embed_path)
-        return train_ds, valid_ds, label_vocab, columns, word_tokenizer, char_tokenizer, word_embed, char_embed
+        train_batches, valid_batches = self.new_batch_data(
+            train_ds=train_ds,
+            valid_ds=valid_ds,
+            columns=columns,
+            batch_size=self.config.batch_size,
+            device=self.config.device,
+            sort_within_batch=self.config.sort_within_batch,
+            len_column=self.len_col,
+        )
+        self.config.classes = list(label_field.vocab.stoi.values())
+        self.config.num_classes = len(self.config.classes)
+        self.config.word_embed = word_embed
+        self.config.char_embed = char_embed
+        self.config.feature_cols = [self.word_ids_col, self.char_ids_col, self.len_col, self.mask_col,
+                                    self.inf_mask_col]
+        self.config.num_labels = len(columns) - len(self.config.feature_cols)
+        self.config.word_vocab_size = len(word_tokenizer.word2index)
+        self.config.char_vocab_size = len(char_tokenizer.word2index)
+        return train_batches, valid_batches
 
 
 if __name__ == '__main__':
-    import sys; sys.path.append("..")
+    import sys
+
+    sys.path.append("..")
     from models.word_char_pool import Config
 
-    config_ = Config(debug=False)
+    config_ = Config(debug=True)
     loader = TrainLoader(config_)

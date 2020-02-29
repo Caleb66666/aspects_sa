@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-model=rcnn_model
+model=word_char_pool
 out=nohup.out
 if [[ ! -f "$out" ]]; then
     touch "$out"
