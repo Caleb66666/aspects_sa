@@ -101,6 +101,7 @@ class WordCharEmbeddingWithCnn(nn.Module):
         self.cnn_activate = nn.ReLU()
 
         self.embed_size = self.word_embed_size + self.char_vec_dim
+        self.embed_bn = nn.BatchNorm1d(self.max_seq)
         self.highway = Highway(self.embed_size, num_layers=highway_layers)
 
         if self.positional_encoding:
@@ -142,7 +143,9 @@ class WordCharEmbeddingWithCnn(nn.Module):
 
         word_embed = self.obtain_word_embed(word_idx)
         char_embed = self.obtain_char_embed(char_idx)
-        embedding = self.highway(torch.cat([word_embed, char_embed], dim=-1))
+        concat_embed = torch.cat([word_embed, char_embed], dim=-1)
+        concat_embed = self.embed_bn(concat_embed)
+        embedding = self.highway(concat_embed)
 
         if self.positional_encoding:
             # positional_vector = nn.Parameter(self.positional_embed[:self.max_seq], requires_grad=True)
