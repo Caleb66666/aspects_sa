@@ -150,7 +150,6 @@ class TrainLoader(BaseLoader):
             debug=self.config.debug,
             dropped_columns=["id", self.config.premise, self.word_tokens_col, self.char_tokens_col]
         )
-        print("train df: ", train_df["location_traffic_convenience"][0])
 
         columns = train_df.columns.tolist()
         long_field, float_field, label_field, fields = self.prepare_fields_word_char(
@@ -163,7 +162,6 @@ class TrainLoader(BaseLoader):
         )
 
         train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
-        print(f"train ds: {train_ds.examples[0].location_traffic_convenience}")
         label_field.build_vocab(train_ds)
         self.save(train_ds, valid_ds, fields, label_field, columns, word_tokenizer, char_tokenizer, word_embed,
                   char_embed)
@@ -185,3 +183,11 @@ class TrainLoader(BaseLoader):
         word_embed = np_deserialize(self.config.word_embed_path)
         char_embed = np_deserialize(self.config.char_embed_path)
         return train_ds, valid_ds, label_vocab, columns, word_tokenizer, char_tokenizer, word_embed, char_embed
+
+
+if __name__ == '__main__':
+    import sys; sys.path.append("..")
+    from models.word_char_pool import Config
+
+    config_ = Config(debug=False)
+    loader = TrainLoader(config_)

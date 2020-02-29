@@ -42,6 +42,7 @@ class Config(BaseConfig):
         self.truncate_method = "head"
 
         # 词嵌入相关
+        self.w2v_path = os.path.join(self.data_cache, "w2v.txt")
         self.embed_dim = 128
         self.window = 10
         self.min_count = 1
