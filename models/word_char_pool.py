@@ -78,8 +78,8 @@ class Config(BaseConfig):
         self.linear_dim = 128
 
         # 训练速率相关
-        self.epochs = 40
-        self.lr = 1e-4
+        self.epochs = 60
+        self.lr = 1e-5
         self.dropout = 0.5
         self.weight_decay = 1e-4
         self.warm_up_proportion = 0.1
