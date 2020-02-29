@@ -10,7 +10,7 @@ from data_loader.transfer_loader import TrainLoader
 from utils.path_util import abspath
 from custom_modules.albert import AlbertModel
 from custom_modules.attention import SelfAttnMatch
-from custom_modules.fusions import BasicSfu, SfuCombiner
+from custom_modules.fusions import BasicSfu, SfuCombiner, Highway
 
 
 class Config(BaseConfig):
@@ -56,6 +56,7 @@ class Config(BaseConfig):
         self.bidirectional = True
         self.num_layers = 1
         self.linear_dim = 256
+        self.highway_layers = 3
 
         # 训练速率相关
         self.epochs = 80
@@ -111,6 +112,7 @@ class Model(nn.Module):
         self.embedding = albert.embeddings.word_embeddings
         if config.fine_tune_embed:
             [setattr(param, "requires_grad", True) for param in self.embedding.parameters()]
+        self.highway = Highway(config.embed_dim, num_layers=config.highway_layers)
 
         self.encoder = nn.LSTM(config.embed_dim, hidden_size=config.hidden_dim, bias=True, batch_first=True,
                                bidirectional=config.bidirectional, num_layers=config.num_layers)
@@ -134,6 +136,7 @@ class Model(nn.Module):
         labels, (seq_ids, seq_len, seq_mask, inf_mask) = inputs[:-4], inputs[-4:]
 
         embed_seq = self.embedding(seq_ids)
+        embed_seq = self.highway(embed_seq)
         encoded_seq, _ = self.encoder(embed_seq)
         self_attn_seq = self.self_attn(encoded_seq, seq_mask)
         fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
