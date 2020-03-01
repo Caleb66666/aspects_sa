@@ -152,14 +152,14 @@ class Model(nn.Module):
             hidden_size = config.hidden_dim * 2
         else:
             hidden_size = config.hidden_dim
-        self.self_attn = SelfAttnMatch(hidden_size)
-        # self.fusion_model = SfuCombiner(hidden_size, hidden_size)
+        # self.self_attn = SelfAttnMatch(hidden_size)
+        self.fusion_model = SfuCombiner(hidden_size, hidden_size)
         # self.fusion_model = BasicSfu(hidden_size, hidden_size)
 
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(
-                hidden_size * 2,
+                hidden_size,
                 config.num_classes,
                 config.linear_dim,
                 dropout=config.dropout
@@ -167,15 +167,22 @@ class Model(nn.Module):
             self.add_module(f"exclusive_unit_{idx}", unit)
             self.units.append(unit)
 
+    @staticmethod
+    def self_soft_attn_align(encoded_text, inf_mask):
+        attention = torch.matmul(encoded_text, encoded_text.transpose(1, 2))
+        self_attn = torch.softmax(attention + inf_mask.unsqueeze(1), dim=-1)
+        self_align = torch.matmul(self_attn, encoded_text)
+        return self_align
+
     def forward(self, inputs):
         labels, (word_ids, char_ids, seq_len, seq_mask, inf_mask) = inputs[:-self.features_len], \
                                                                     inputs[-self.features_len:]
 
         embed_seq = self.embedding(word_ids, char_ids)
         encoded_seq, _ = self.encoder(embed_seq)
-        self_attn_seq = self.self_attn(encoded_seq, seq_mask)
-        # fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
-        fusion_seq = torch.cat([encoded_seq, self_attn_seq], dim=-1)
+        self_attn_seq = self.self_soft_attn_align(encoded_seq, seq_mask)
+        fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
+        # fusion_seq = torch.cat([encoded_seq, self_attn_seq], dim=-1)
 
         if labels is None:
             self._if_infer = True
