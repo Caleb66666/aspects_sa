@@ -97,8 +97,7 @@ class WordCharEmbeddingWithCnn(nn.Module):
         self.char_embedding = nn.Embedding(char_vocab_size, self.char_embed_size)
         self.char_vec_dim = n_channel * len(kernel_sizes)
         self.conv_list = nn.ModuleList([nn.Conv2d(1, n_channel, [ks, self.char_embed_size]) for ks in kernel_sizes])
-        self.cnn_bn = nn.BatchNorm1d(n_channel)
-        self.cnn_activate = nn.ReLU()
+        self.cnn_activate = nn.Tanh()
 
         self.embed_size = self.word_embed_size + self.char_vec_dim
         self.embed_bn = nn.BatchNorm1d(self.max_seq)
@@ -130,7 +129,6 @@ class WordCharEmbeddingWithCnn(nn.Module):
         char_embed = []
         for conv in self.conv_list:
             cnn_raw_embed = conv(raw_char_embed).squeeze(-1)
-            cnn_raw_embed = self.cnn_bn(cnn_raw_embed)
             cnn_raw_embed = self.cnn_activate(cnn_raw_embed)
             pooled_cnn = torch.max_pool1d(cnn_raw_embed, cnn_raw_embed.size(-1)).squeeze(-1)
             char_embed.append(pooled_cnn)

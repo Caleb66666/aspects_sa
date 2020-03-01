@@ -78,8 +78,8 @@ class Config(BaseConfig):
         self.linear_dim = 128
 
         # 训练速率相关
-        self.epochs = 80
-        self.lr = 8e-5
+        self.epochs = 50
+        self.lr = 1e-4
         self.dropout = 0.5
         self.weight_decay = 5e-4
         self.warm_up_proportion = 0.1
@@ -152,7 +152,8 @@ class Model(nn.Module):
         else:
             hidden_size = config.hidden_dim
         self.self_attn = SelfAttnMatch(hidden_size)
-        self.fusion_model = SfuCombiner(hidden_size, hidden_size)
+        # self.fusion_model = SfuCombiner(hidden_size, hidden_size)
+        self.fusion_model = BasicSfu(hidden_size, hidden_size)
 
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
@@ -171,9 +172,8 @@ class Model(nn.Module):
 
         embed_seq = self.embedding(word_ids, char_ids)
         encoded_seq, _ = self.encoder(embed_seq)
-        fusion_seq = encoded_seq
-        # self_attn_seq = self.self_attn(encoded_seq, seq_mask)
-        # fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
+        self_attn_seq = self.self_attn(encoded_seq, seq_mask)
+        fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
 
         if labels is None:
             self._if_infer = True
