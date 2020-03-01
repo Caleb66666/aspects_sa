@@ -5,6 +5,7 @@
 
 
 import os
+import torch
 from torch import nn
 from models.base_model import BaseConfig, ExclusiveUnit
 from data_loader.word_char_loader import TrainLoader
@@ -153,12 +154,12 @@ class Model(nn.Module):
             hidden_size = config.hidden_dim
         self.self_attn = SelfAttnMatch(hidden_size)
         # self.fusion_model = SfuCombiner(hidden_size, hidden_size)
-        self.fusion_model = BasicSfu(hidden_size, hidden_size)
+        # self.fusion_model = BasicSfu(hidden_size, hidden_size)
 
         self.units = nn.ModuleList()
         for idx in range(self.num_labels):
             unit = ExclusiveUnit(
-                hidden_size,
+                hidden_size * 2,
                 config.num_classes,
                 config.linear_dim,
                 dropout=config.dropout
@@ -173,7 +174,8 @@ class Model(nn.Module):
         embed_seq = self.embedding(word_ids, char_ids)
         encoded_seq, _ = self.encoder(embed_seq)
         self_attn_seq = self.self_attn(encoded_seq, seq_mask)
-        fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
+        # fusion_seq = self.fusion_model(encoded_seq, self_attn_seq)
+        fusion_seq = torch.cat([encoded_seq, self_attn_seq], dim=-1)
 
         if labels is None:
             self._if_infer = True
