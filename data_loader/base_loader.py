@@ -8,7 +8,7 @@ import codecs
 import numpy as np
 import pandas as pd
 from itertools import islice
-from utils.text_util import t2s, full2half
+from utils.text_util import t2s, full2half, remove_duplicate
 from torchtext.data import Field, LabelField, Example, Dataset, BucketIterator
 import torch
 import matplotlib.pyplot as plt
@@ -224,7 +224,7 @@ class BaseLoader(object):
         raise RuntimeError(f"files len: {len(files)} should be 1 or 2")
 
     @staticmethod
-    def _pretreatment(text, if_lower=False):
+    def _pretreatment(text, if_lower=True):
         """
         主要是预处理文本，或者其他去除特殊字符的处理，如果有其他方面的需求，就在子类中将这个方法重载了
         :param text:
@@ -232,8 +232,12 @@ class BaseLoader(object):
         """
         text = t2s(text)
         text = full2half(text)
+        text = text.strip('"')
+        text = ''.join([x for i, x in enumerate(text) if
+                        not (i < len(text) - 1 and not (x.strip()) and not (text[i + 1].strip()))])
+        text = remove_duplicate(text)
         if if_lower:
-            return text.lower()
+            text = text.lower()
         return text
 
     def pretreatment_text(self, train_df, valid_df, premise, debug, if_lower):
