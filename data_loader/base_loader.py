@@ -4,13 +4,13 @@
 # @time: 2020/2/28 09:24:54
 
 import os
+import torch
 import codecs
 import numpy as np
 import pandas as pd
 from itertools import islice
 from utils.text_util import t2s, full2half, remove_duplicate
 from torchtext.data import Field, LabelField, Example, Dataset, BucketIterator
-import torch
 import matplotlib.pyplot as plt
 from pandarallel import pandarallel
 from gensim.models.word2vec import Word2Vec
@@ -19,6 +19,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle as shuffle_data
 from collections import Counter
 import jieba_fast as jieba
+from utils.vocab_util import Tokenizer, Vectors
 
 
 class BaseTokenizer(object):
@@ -236,6 +237,8 @@ class BaseLoader(object):
         text = ''.join([x for i, x in enumerate(text) if
                         not (i < len(text) - 1 and not (x.strip()) and not (text[i + 1].strip()))])
         text = remove_duplicate(text)
+        text = text.replace("''", '" ').replace("``", '" ').replace('\r', '\x01').replace(
+            '\n', '\x02').replace('<R>', '\x01').replace('<N>', '\x02').replace('\t', ' ').replace(' ', '\x03')
         if if_lower:
             text = text.lower()
         return text
@@ -247,6 +250,33 @@ class BaseLoader(object):
         else:
             for df in (train_df, valid_df):
                 df[premise] = df[premise].parallel_apply(lambda text: self._pretreatment(text, if_lower))
+        return train_df, valid_df
+
+    def read_raw_and_pretreatment(self, debug, files, header, sep, shuffle, seed, encoding, premise, if_lower,
+                                  processed_train, processed_valid):
+        if not os.path.exists(processed_train) or not os.path.exists(processed_valid):
+            train_df, valid_df = self.read_raw(
+                files=files,
+                header=header,
+                sep=sep,
+                debug=debug,
+                shuffle=shuffle,
+                seed=seed,
+                encoding=encoding
+            )
+            train_df, valid_df = self.pretreatment_text(
+                train_df=train_df,
+                valid_df=valid_df,
+                premise=premise,
+                debug=debug,
+                if_lower=if_lower,
+            )
+            train_df.to_csv(processed_train, sep=sep, encoding=encoding, index=False)
+            valid_df.to_csv(processed_valid, sep=sep, encoding=encoding, index=False)
+            return train_df, valid_df
+
+        train_df = pd.read_csv(processed_train, sep=sep, header=header, encoding=encoding)
+        valid_df = pd.read_csv(processed_valid, sep=sep, header=header, encoding=encoding)
         return train_df, valid_df
 
     @staticmethod
@@ -262,21 +292,28 @@ class BaseLoader(object):
     def _stop_filter(stop_words, tokens):
         return list(filter(lambda token: token not in stop_words, tokens))
 
-    def tokenize_and_stop_symbols(self, train_df, valid_df, debug, tokenizer=None, max_vocab=None, pad_token=None,
-                                  unk_token=None, tokenize_method="char", stop_symbols_file=None, premise="content",
-                                  tokens_col="tokens", user_dict=None, min_count=None):
+    def tokenize_and_stop_symbols(self, train_df, valid_df, debug, tokenizer_path, tokenizer=None,
+                                  max_vocab_size=None, pad_token=None, unk_token=None, split_type="char",
+                                  stop_symbols_file=None, premise="content", tokens_col="tokens", user_dict=None,
+                                  min_count=None, bert_path=None):
         if tokenizer is None:
-            tokenizer = BaseTokenizer(
-                max_vocab=max_vocab,
-                pad_token=pad_token,
-                unk_token=unk_token,
-                tokenize_method=tokenize_method,
-                user_dict=user_dict,
-                min_count=min_count
-            )
-            if_custom = True
+            if os.path.isfile(tokenizer_path):
+                tokenizer = Tokenizer.load(tokenizer_path)
+                need_build_vocab = False
+            else:
+                tokenizer = Tokenizer(
+                    split_type=split_type,
+                    user_dict=user_dict,
+                    bert_path=bert_path,
+                    max_vocab_size=max_vocab_size,
+                    min_count=min_count,
+                    pad_token=pad_token,
+                    unk_token=unk_token,
+                )
+                need_build_vocab = True
         else:
-            if_custom = False
+            # 这一部分是为迁移模型准备的，因为对于迁移模型，既不需要分词，也不需要计算词嵌入
+            need_build_vocab = False
 
         if stop_symbols_file is not None:
             stop_symbols = self.read_stop_symbols(stop_symbols_file)
@@ -293,8 +330,9 @@ class BaseLoader(object):
                     df[tokens_col] = df[tokens_col].parallel_apply(
                         lambda tokens: self._stop_filter(stop_symbols, tokens))
 
-        if if_custom:
+        if need_build_vocab:
             tokenizer.build_vocab(train_df[tokens_col], valid_df[tokens_col])
+            tokenizer.save(tokenizer_path)
 
         return train_df, valid_df, tokenizer
 
@@ -392,6 +430,36 @@ class BaseLoader(object):
             embed_matrix[idx] = vector
 
         return embed_matrix
+
+    @staticmethod
+    def gen_embed_matrix(w2v_path, vocab, train_df=None, valid_df=None, tokens_col="tokens", seed=279,
+                         embed_dim=128, max_vocab_size=20000, pad_token="<pad>", unk_token="<unk>", window=10,
+                         min_count=1, workers=4, iterations=20, force_train=False):
+        if not os.path.isfile(w2v_path) or force_train:
+            if valid_df is not None:
+                corpus = pd.concat([train_df[tokens_col], valid_df[tokens_col]])
+            else:
+                corpus = train_df[tokens_col]
+            vectors = Vectors.train_model(
+                w2v_path=w2v_path,
+                sentences=corpus,
+                embed_dim=embed_dim,
+                window=window,
+                min_count=min_count,
+                workers=workers,
+                iterations=iterations,
+                seed=seed,
+                max_vocab_size=max_vocab_size,
+                unk_token=unk_token,
+                pad_token=pad_token
+            )
+        else:
+            vectors = Vectors.load_model(w2v_path, unk_token, pad_token)
+
+        embed_mat = np.zeros((len(vocab), embed_dim))
+        for idx, word in enumerate(vocab.itos):
+            embed_mat[idx] = vectors[word]
+        return embed_mat
 
     @staticmethod
     def closeout_process(train_df, valid_df, debug, dropped_columns=None, closeout_fn=None):

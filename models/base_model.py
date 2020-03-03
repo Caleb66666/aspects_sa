@@ -29,8 +29,19 @@ class BaseConfig(object):
         if not os.path.exists(self.data_cache):
             os.makedirs(self.data_cache)
 
-        # data-loader，处理完的数据序列化的位置，不需要再次初始化、预处理、分词、word-piece、sentence-piece等操作
-        self.dl_path = os.path.join(self.data_cache, "parameters.pt")
+        # pretreatment之后的csv文件，全局通用
+        self.processed_train = abspath(f"data/processed.train.csv")
+        self.processed_valid = abspath(f"data/processed.valid.csv")
+
+        # 分词器序列化，包含vocab以及分词方式
+        self.word_tokenizer_path = os.path.join(self.data_cache, "word.tokenizer.pt")
+        self.char_tokenizer_path = os.path.join(self.data_cache, "char.tokenizer.pt")
+
+        # 外部训练的w2v文件，目前是使用gensim-KeyedVectors的格式，此处默认指向外部词向量，也可自己训练
+        self.word_w2v = os.path.join(self.data_cache, "word.w2v.txt")
+        self.char_w2v = os.path.join(self.data_cache, "char.w2v.txt")
+
+        # 目前来看将data-frame数据numpy化进行存储效果好点：包括train_df/valid_df/word_embed_mat/char_embed_mat/columns
         self.processed_np = os.path.join(self.data_cache, "processed.npz")
 
         # 存储模型位置设置，使用时间戳进行模型的命名
@@ -56,12 +67,24 @@ class BaseConfig(object):
         self.restore_model = False
         self.default_scale = 1
 
+        # 为debug-set预留字段
         self.epochs = None
         self.batch_size = None
 
     def debug_set(self):
         self.epochs = 1
         self.batch_size = 2
+        self.model_ckpt = os.path.join(self.model_dir, "debug.{}.ckpt")
+        self.logger_file = os.path.join(self.logger_dir, "debug.{}.log")
+
+        self.processed_train = abspath(f"data/debug.processed.train.csv")
+        self.processed_valid = abspath(f"data/debug.processed.valid.csv")
+        self.word_tokenizer_path = os.path.join(self.data_cache, "debug.word.tokenizer.pt")
+        self.char_tokenizer_path = os.path.join(self.data_cache, "debug.char.tokenizer.pt")
+        self.word_w2v = abspath("library/embed.30w.txt")
+        # self.word_w2v = os.path.join(self.data_cache, "debug.word.w2v.txt")
+        self.char_w2v = os.path.join(self.data_cache, "debug.char.w2v.txt")
+        self.processed_np = os.path.join(self.data_cache, "debug.processed.npz")
 
     def set_seed(self, seed):
         random.seed(seed)
