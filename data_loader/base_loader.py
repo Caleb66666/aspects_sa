@@ -292,7 +292,7 @@ class BaseLoader(object):
     def _stop_filter(stop_words, tokens):
         return list(filter(lambda token: token not in stop_words, tokens))
 
-    def tokenize_and_stop_symbols(self, train_df, valid_df, debug, tokenizer_path, tokenizer=None,
+    def tokenize_and_stop_symbols(self, train_df, valid_df, debug, tokenizer_path=None, tokenizer=None,
                                   max_vocab_size=None, pad_token=None, unk_token=None, split_type="char",
                                   stop_symbols_file=None, premise="content", tokens_col="tokens", user_dict=None,
                                   min_count=None, bert_path=None):
@@ -506,25 +506,8 @@ class BaseLoader(object):
                 fields.append((column, label_field))
         return long_field, float_field, label_field, fields
 
-    def batch_data(self, train_df, valid_df, fields, columns, batch_size, device, sort_within_batch, len_column,
-                   build_vocab_field):
-        train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
-        build_vocab_field.build_vocab(train_ds)
-        train_iter, valid_iter = BucketIterator.splits(
-            (train_ds, valid_ds),
-            batch_size=batch_size,
-            device=device,
-            sort_within_batch=sort_within_batch,
-            sort=False,
-            sort_key=lambda sample: getattr(sample, len_column),
-            repeat=False
-        )
-        train_batches = BatchWrapper(train_iter, columns, len(train_ds))
-        valid_batches = BatchWrapper(valid_iter, columns, len(valid_ds))
-        return train_batches, valid_batches
-
     @staticmethod
-    def new_batch_data(train_ds, valid_ds, columns, batch_size, device, sort_within_batch, len_column):
+    def batch_data(train_ds, valid_ds, columns, batch_size, device, sort_within_batch, len_column):
         train_iter, valid_iter = BucketIterator.splits(
             (train_ds, valid_ds),
             batch_size=batch_size,

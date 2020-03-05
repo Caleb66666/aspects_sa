@@ -153,7 +153,7 @@ class TrainLoader(BaseLoader):
         )
         train_ds, valid_ds = self.df2ds(train_df, fields, columns), self.df2ds(valid_df, fields, columns)
         label_field.build_vocab(train_ds)
-        train_batches, valid_batches = self.new_batch_data(
+        train_batches, valid_batches = self.batch_data(
             train_ds=train_ds,
             valid_ds=valid_ds,
             columns=columns,

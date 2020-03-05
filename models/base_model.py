@@ -33,6 +33,9 @@ class BaseConfig(object):
         self.processed_train = abspath(f"data/processed.train.csv")
         self.processed_valid = abspath(f"data/processed.valid.csv")
 
+        # 可能存在的迁移模型对应的地址
+        self.transfer_path = "/data/wangqian/berts/albert-base-chinese"
+
         # 分词器序列化，包含vocab以及分词方式
         self.word_tokenizer_path = os.path.join(self.data_cache, "word.tokenizer.pt")
         self.char_tokenizer_path = os.path.join(self.data_cache, "char.tokenizer.pt")
@@ -85,6 +88,7 @@ class BaseConfig(object):
         # self.word_w2v = os.path.join(self.data_cache, "debug.word.w2v.txt")
         self.char_w2v = os.path.join(self.data_cache, "debug.char.w2v.txt")
         self.processed_np = os.path.join(self.data_cache, "debug.processed.npz")
+        self.transfer_path = "/Users/Vander/Code/pytorch_col/albert-base-chinese"
 
     def set_seed(self, seed):
         random.seed(seed)
