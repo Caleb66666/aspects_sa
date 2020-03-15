@@ -40,7 +40,7 @@ class Config(BaseConfig):
 
         # batch化相关
         self.sort_within_batch = False
-        self.batch_size = 16
+        self.batch_size = 8
 
         # 模型结构相关
         self.transfer_hidden = 2048
@@ -54,11 +54,11 @@ class Config(BaseConfig):
         self.warm_up_proportion = 0.1
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
-        self.schedule_per_batches = 800
+        self.schedule_per_batches = 1600
 
         # 训练时验证相关
         self.improve_require = 50000
-        self.eval_per_batches = 800
+        self.eval_per_batches = 1600
         self.f1_average = "macro"
 
         # 待计算赋值的全局变量
