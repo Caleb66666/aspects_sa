@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-model=transfer_sfu
+model=single_transfer
 out=nohup.out
 if [[ ! -f "$out" ]]; then
     touch "$out"

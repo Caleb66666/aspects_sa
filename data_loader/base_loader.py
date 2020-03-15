@@ -289,14 +289,25 @@ class BaseLoader(object):
         return stop_words
 
     @staticmethod
+    def _tokenize(tokenizer, sentence, if_transfer, cls_token, sep_token):
+        if if_transfer:
+            tokens = [cls_token, ]
+            tokens.extend(tokenizer.tokenize(sentence))
+            tokens.append(sep_token)
+        else:
+            tokens = tokenizer.tokenize(sentence)
+        return tokens
+
+    @staticmethod
     def _stop_filter(stop_words, tokens):
         return list(filter(lambda token: token not in stop_words, tokens))
 
     def tokenize_and_stop_symbols(self, train_df, valid_df, debug, tokenizer_path=None, tokenizer=None,
                                   max_vocab_size=None, pad_token=None, unk_token=None, split_type="char",
                                   stop_symbols_file=None, premise="content", tokens_col="tokens", user_dict=None,
-                                  min_count=None, bert_path=None):
+                                  min_count=None, bert_path=None, cls_token='[CLS]', sep_token='[SEP]'):
         if tokenizer is None:
+            if_transfer = False
             if os.path.isfile(tokenizer_path):
                 tokenizer = Tokenizer.load(tokenizer_path)
                 need_build_vocab = False
@@ -314,18 +325,21 @@ class BaseLoader(object):
         else:
             # 这一部分是为迁移模型准备的，因为对于迁移模型，既不需要分词，也不需要计算词嵌入
             need_build_vocab = False
+            if_transfer = True
 
         if stop_symbols_file is not None:
             stop_symbols = self.read_stop_symbols(stop_symbols_file)
 
         if debug:
             for df in (train_df, valid_df):
-                df[tokens_col] = df[premise].apply(tokenizer.tokenize)
+                df[tokens_col] = df[premise].apply(
+                    lambda text: self._tokenize(tokenizer, text, if_transfer, cls_token, sep_token))
                 if stop_symbols_file is not None:
                     df[tokens_col] = df[tokens_col].apply(lambda tokens: self._stop_filter(stop_symbols, tokens))
         else:
             for df in (train_df, valid_df):
-                df[tokens_col] = df[premise].parallel_apply(tokenizer.tokenize)
+                df[tokens_col] = df[premise].parallel_apply(
+                    lambda text: self._tokenize(tokenizer, text, if_transfer, cls_token, sep_token))
                 if stop_symbols_file is not None:
                     df[tokens_col] = df[tokens_col].parallel_apply(
                         lambda tokens: self._stop_filter(stop_symbols, tokens))
