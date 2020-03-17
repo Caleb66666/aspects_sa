@@ -48,9 +48,9 @@ class Config(BaseConfig):
 
         # 训练速率相关
         self.epochs = 50
-        self.lr = 5e-5
+        self.lr = 1e-5
         self.dropout = 0.5
-        self.weight_decay = 1e-3
+        self.weight_decay = 5e-3
         self.warm_up_proportion = 0.1
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
