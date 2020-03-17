@@ -40,25 +40,25 @@ class Config(BaseConfig):
 
         # batch化相关
         self.sort_within_batch = False
-        self.batch_size = 8
+        self.batch_size = 32
 
         # 模型结构相关
-        self.transfer_hidden = 1024
+        self.transfer_hidden = 768
         self.linear_size = 256
 
         # 训练速率相关
         self.epochs = 50
         self.lr = 5e-5
         self.dropout = 0.5
-        self.weight_decay = 5e-4
+        self.weight_decay = 1e-3
         self.warm_up_proportion = 0.1
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 5
-        self.schedule_per_batches = 1600
+        self.schedule_per_batches = 12800 / self.batch_size
 
         # 训练时验证相关
         self.improve_require = 50000
-        self.eval_per_batches = 1600
+        self.eval_per_batches = 12800 / self.batch_size
         self.f1_average = "macro"
 
         # 待计算赋值的全局变量

@@ -12,9 +12,9 @@ class TestAlbertMaskModel(unittest.TestCase):
     def setUp(self):
         super(TestAlbertMaskModel, self).setUp()
 
-        # albert_pre_train = "/Users/Vander/Code/pytorch_col/albert_chinese_base_hf"
+        albert_pre_train = "/Users/Vander/Code/pytorch_col/albert_chinese_base_hf"
         # albert_pre_train = "/Users/Vander/Code/pytorch_col/albert_chinese_large_hf"
-        albert_pre_train = "/Users/Vander/Code/pytorch_col/albert_chinese_xlarge_hf"
+        # albert_pre_train = "/Users/Vander/Code/pytorch_col/albert_chinese_xlarge_hf"
         self.tokenizer = BertTokenizer.from_pretrained(albert_pre_train)
 
         self.mask_model = AlbertForMaskedLM.from_pretrained(albert_pre_train)
@@ -22,7 +22,7 @@ class TestAlbertMaskModel(unittest.TestCase):
         self.mask_id = self.tokenizer.mask_token_id
 
     def test_model_mask_infer(self):
-        input_text = f"今天{self.mask_token}{self.mask_token}很好"
+        input_text = f"今天{self.mask_token}情很好"
         seq_ids = self.tokenizer.encode(input_text, add_special_tokens=True)
         mask_pos_list = [i for i in range(len(seq_ids)) if seq_ids[i] == self.mask_id]
 
