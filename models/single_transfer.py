@@ -47,7 +47,7 @@ class Config(BaseConfig):
         self.linear_size = 256
 
         # 训练速率相关
-        self.epochs = 50
+        self.epochs = 25
         self.lr = 1e-5
         self.dropout = 0.5
         self.weight_decay = 5e-3
